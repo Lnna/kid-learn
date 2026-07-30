@@ -1,0 +1,139 @@
+/* 幼小衔接 · 设计令牌 */
+:root,
+page {
+  --color-cream: #fff8ee;
+  --color-cream-dark: #f5ebd8;
+  --color-ink: #2c2416;
+  --color-ink-soft: #5c5346;
+  --color-muted: #8a7f6e;
+
+  /* 五科主题色 */
+  --color-chinese: #ff7a59;
+  --color-math: #3ecf8e;
+  --color-english: #4da3ff;
+  --color-nature: #ff8fb8;
+  --color-science: #9b7bff;
+
+  --color-star: #ffc84a;
+  --color-success: #3ecf8e;
+  --color-error: #ff6b6b;
+  --color-lock: #c4b8a5;
+
+  --radius-sm: 16rpx;
+  --radius-md: 24rpx;
+  --radius-lg: 32rpx;
+  --radius-xl: 48rpx;
+
+  --shadow-soft: 0 8rpx 32rpx rgba(44, 36, 22, 0.08);
+  --shadow-pop: 0 12rpx 40rpx rgba(44, 36, 22, 0.12);
+
+  --font-display: "PingFang SC", "HarmonyOS Sans SC", "Hiragino Sans GB",
+    "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-round: "PingFang SC", "HarmonyOS Sans SC", "圆体-简", "Yuanti SC",
+    "Hiragino Sans GB", sans-serif;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  --content-max: 960px;
+}
+
+/* 关键帧动画 */
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12rpx);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes star-fall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(200rpx) rotate(180deg) scale(0.4);
+  }
+}
+
+@keyframes confetti {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(300rpx) rotate(720deg);
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-6deg);
+  }
+  75% {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes path-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 200, 74, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 16rpx rgba(255, 200, 74, 0);
+  }
+}
+
+.anim-bounce {
+  animation: bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.anim-float {
+  animation: float-y 3s ease-in-out infinite;
+}
+
+.anim-pulse {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.anim-wiggle {
+  animation: wiggle 0.5s ease-in-out;
+}

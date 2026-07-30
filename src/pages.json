@@ -1,0 +1,47 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "小小衔"
+      }
+    },
+    {
+      "path": "pages/subject/map",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "课程地图"
+      }
+    },
+    {
+      "path": "pages/lesson/play",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "学习"
+      }
+    },
+    {
+      "path": "pages/parent/dashboard",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "家长中心"
+      }
+    },
+    {
+      "path": "pages/settings/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "设置"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "小小衔",
+    "navigationBarBackgroundColor": "#FFF8EE",
+    "backgroundColor": "#FFF8EE",
+    "rpxCalcMaxDeviceWidth": 960,
+    "rpxCalcBaseDeviceWidth": 375
+  }
+}

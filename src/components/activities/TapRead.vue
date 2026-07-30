@@ -1,0 +1,109 @@
+<template>
+  <view class="act">
+    <text class="act__title">{{ activity.title }}</text>
+    <text v-if="activity.instruction" class="act__hint">{{ activity.instruction }}</text>
+    <view class="grid">
+      <view
+        v-for="item in activity.items"
+        :key="item.id"
+        class="card"
+        :class="{ active: activeId === item.id }"
+        :style="{ borderColor: item.color || '#f5ebd8' }"
+        @click="onTap(item)"
+        @tap="onTap(item)"
+      >
+        <text v-if="item.icon" class="card__icon">{{ item.icon }}</text>
+        <text class="card__label">{{ item.label }}</text>
+        <text v-if="item.subLabel" class="card__sub">{{ item.subLabel }}</text>
+      </view>
+    </view>
+    <KButton
+      v-if="explored.size >= Math.min(3, activity.items.length)"
+      label="下一关活动 →"
+      block
+      :color="color"
+      @click="emit('done', { correct: activity.items.length, total: activity.items.length })"
+    />
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import type { TapReadActivity } from '../../engine/types'
+import { speak, unlockSpeak } from '../../utils/tts'
+import { playSfx } from '../../utils/sfx'
+import KButton from '../ui/KButton.vue'
+
+const props = defineProps<{ activity: TapReadActivity; color?: string; tts?: boolean }>()
+const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()
+
+const activeId = ref('')
+const explored = ref(new Set<string>())
+
+function onTap(item: TapReadActivity['items'][0]) {
+  unlockSpeak()
+  activeId.value = item.id
+  explored.value = new Set([...explored.value, item.id])
+  playSfx('tap')
+  if (props.tts !== false) speak(item.speak || item.label, { lang: item.speakLang })
+}
+</script>
+
+<style scoped lang="scss">
+.act__title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 800;
+  color: var(--color-ink);
+  margin-bottom: 8rpx;
+}
+.act__hint {
+  display: block;
+  font-size: 26rpx;
+  color: var(--color-muted);
+  margin-bottom: 28rpx;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
+  margin-bottom: 32rpx;
+}
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.card {
+  background: #fff;
+  border-radius: var(--radius-md);
+  padding: 28rpx 16rpx;
+  text-align: center;
+  border: 4rpx solid #f5ebd8;
+  box-shadow: var(--shadow-soft);
+  min-height: 160rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s;
+}
+.card.active {
+  transform: scale(1.04);
+  box-shadow: var(--shadow-pop);
+}
+.card__icon {
+  font-size: 48rpx;
+  margin-bottom: 8rpx;
+}
+.card__label {
+  font-size: 44rpx;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+.card__sub {
+  font-size: 24rpx;
+  color: var(--color-muted);
+  margin-top: 6rpx;
+}
+</style>

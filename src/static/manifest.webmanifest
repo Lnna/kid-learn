@@ -1,0 +1,26 @@
+{
+  "name": "小小衔",
+  "short_name": "小小衔",
+  "description": "幼小衔接自学 · 语文数学英语自然科学",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FFF8EE",
+  "theme_color": "#FFF8EE",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
