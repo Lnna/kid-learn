@@ -22,7 +22,7 @@
           @click="enter(t.id)"
         >
           <view class="door__arch">
-            <text class="door__emoji">{{ t.emoji }}</text>
+            <ActivityIcon :name="t.emoji" :size="96" />
           </view>
           <text class="door__name">{{ t.name }}</text>
           <text class="door__desc">{{ t.description }}</text>
@@ -54,6 +54,7 @@ import { canEnter, chooseTheme, shuttleUnlocked, themeTotalStars, loadThemeLock,
 import type { ThemeId } from '../../engine/types'
 import { unlockSpeak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
+import ActivityIcon from '../../components/ui/ActivityIcon.vue'
 
 const totalStars = ref(0)
 const shuttle = ref(false)
@@ -208,9 +209,6 @@ onShow(refresh)
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.door__emoji {
-  font-size: 88rpx;
 }
 .door__name {
   display: block;

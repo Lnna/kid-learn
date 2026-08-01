@@ -5,30 +5,34 @@
     <view class="board">
       <view class="col">
         <view
-          v-for="p in lefts"
+          v-for="(p, i) in lefts"
           :key="p.id"
           class="chip"
           :class="{ selected: selectedLeft === p.id, matched: matched.has(p.id) }"
           @click="pickLeft(p.id)"
         >
+          <text class="chip__letter">{{ letterOf(i) }}</text>
           <view v-if="p.leftIcon" class="chip__icon">
             <ActivityIcon :name="p.leftIcon" :size="48" />
           </view>
           <text class="chip__text">{{ p.left }}</text>
+          <OptionSpeak :text="p.left" size="sm" />
         </view>
       </view>
       <view class="col">
         <view
-          v-for="p in rights"
+          v-for="(p, i) in rights"
           :key="'r-' + p.id"
           class="chip chip--right"
           :class="{ matched: matched.has(p.id) }"
           @click="pickRight(p.id)"
         >
+          <text class="chip__letter">{{ letterOf(i) }}</text>
           <view v-if="p.rightIcon" class="chip__icon">
             <ActivityIcon :name="p.rightIcon" :size="48" />
           </view>
           <text class="chip__text">{{ p.right }}</text>
+          <OptionSpeak :text="p.right" size="sm" />
         </view>
       </view>
     </view>
@@ -41,6 +45,7 @@ import { ref, computed, watch } from 'vue'
 import type { DragMatchActivity } from '../../engine/types'
 import { playSfx } from '../../utils/sfx'
 import ActivityIcon from '../ui/ActivityIcon.vue'
+import OptionSpeak from '../ui/OptionSpeak.vue'
 
 const props = defineProps<{ activity: DragMatchActivity; color?: string }>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()
@@ -52,6 +57,10 @@ function shuffle<T>(arr: T[]) {
     ;[a[i], a[j]] = [a[j], a[i]]
   }
   return a
+}
+
+function letterOf(i: number) {
+  return String.fromCharCode(65 + i)
 }
 
 const lefts = computed(() => props.activity.pairs)
@@ -119,15 +128,15 @@ function pickRight(id: string) {
   gap: 16rpx;
 }
 .chip {
-  background: #fff;
+  background: #fff8ee;
   border-radius: var(--radius-md);
-  padding: 24rpx;
-  border: 4rpx solid #f5ebd8;
+  padding: 16rpx 12rpx;
+  border: 4rpx solid #e8dcc8;
   text-align: center;
   min-height: 96rpx;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8rpx;
 }
 .chip.selected {
@@ -138,12 +147,32 @@ function pickRight(id: string) {
   opacity: 0.4;
   border-color: var(--color-success);
 }
+.chip__letter {
+  flex-shrink: 0;
+  min-width: 40rpx;
+  height: 40rpx;
+  padding: 0 6rpx;
+  border-radius: 12rpx;
+  background: #fff;
+  border: 3rpx solid #e8dcc8;
+  color: var(--color-ink-soft, #5a5048);
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 34rpx;
+  text-align: center;
+  font-family: var(--font-round);
+  box-sizing: border-box;
+}
 .chip__icon {
   font-size: 36rpx;
+  flex-shrink: 0;
 }
 .chip__text {
-  font-size: 32rpx;
+  font-size: 28rpx;
   font-weight: 700;
+  flex: 1;
+  text-align: left;
+  min-width: 0;
 }
 .progress {
   display: block;

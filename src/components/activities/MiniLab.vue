@@ -91,10 +91,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import type { MiniLabActivity } from '../../engine/types'
 import { playSfx } from '../../utils/sfx'
-import { speak } from '../../utils/tts'
+import { speak, unlockSpeak } from '../../utils/tts'
 import KButton from '../ui/KButton.vue'
 
 const props = defineProps<{ activity: MiniLabActivity; color?: string; tts?: boolean }>()
@@ -108,6 +108,13 @@ const shadowSkew = ref(-20)
 const waving = ref(false)
 const waterOn = ref('ice')
 const dissolveTip = ref('把粉末丢进杯子看看')
+
+onMounted(() => {
+  const intro = props.activity.lab.intro?.trim()
+  if (props.tts !== false && intro) {
+    setTimeout(() => speak(intro, { silent: true }), 400)
+  }
+})
 
 const floatObjs = reactive([
   { id: 'wood', icon: '🪵', sunk: false, x: 15 },
@@ -136,6 +143,7 @@ const powders = reactive([
 
 function doStep(i: number) {
   if (i !== stepDone.value) return
+  unlockSpeak()
   stepDone.value++
   playSfx('tap')
   const st = props.activity.lab.steps[i]
@@ -143,6 +151,7 @@ function doStep(i: number) {
 }
 
 function toggleFloat(obj: (typeof floatObjs)[0]) {
+  unlockSpeak()
   activeId.value = obj.id
   playSfx('tap')
   if (props.tts !== false) speak(obj.sunk ? '沉下去了' : '浮起来了')

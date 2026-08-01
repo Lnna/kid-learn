@@ -12,16 +12,21 @@
       <view v-for="n in Math.max(0, current.answerOrder.length - picked.length)" :key="'e' + n" class="slot empty" />
     </view>
     <view class="pool">
-      <view
-        v-for="opt in pool"
+      <ChoiceOption
+        v-for="(opt, i) in pool"
         :key="opt.id"
-        class="chip"
-        :class="{ used: picked.includes(opt.id) }"
-        @click="pick(opt.id)"
+        variant="chip"
+        :index="i"
+        :label="opt.label"
+        :speak="opt.speak"
+        :speak-lang="opt.speakLang"
+        :tts="tts"
+        :root-class="{ used: picked.includes(opt.id) }"
+        @select="pick(opt.id)"
       >
         <ActivityIcon v-if="opt.icon" :name="opt.icon" :size="48" />
-        <text>{{ opt.label }}</text>
-      </view>
+        <text class="chip__label">{{ opt.label }}</text>
+      </ChoiceOption>
     </view>
     <KButton
       v-if="picked.length === current.answerOrder.length"
@@ -41,6 +46,7 @@ import { speak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 import ActivityIcon from '../ui/ActivityIcon.vue'
+import ChoiceOption from '../ui/ChoiceOption.vue'
 
 const props = defineProps<{ activity: SequenceActivity; color?: string; tts?: boolean }>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()
@@ -155,19 +161,9 @@ onMounted(say)
   justify-content: center;
   margin-bottom: 28rpx;
 }
-.chip {
-  background: #fff;
-  border-radius: 999rpx;
-  padding: 16rpx 24rpx;
-  border: 4rpx solid #f5ebd8;
+.chip__label {
   font-weight: 700;
   font-size: 30rpx;
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-.chip.used {
-  opacity: 0.3;
 }
 .progress {
   display: block;
@@ -175,5 +171,8 @@ onMounted(say)
   margin-top: 16rpx;
   color: var(--color-muted);
   font-size: 26rpx;
+}
+:deep(.choice.used) {
+  opacity: 0.3;
 }
 </style>

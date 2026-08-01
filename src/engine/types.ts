@@ -43,6 +43,7 @@ export interface ChoiceOption {
   label: string
   icon?: string
   speak?: string
+  speakLang?: string
 }
 
 export interface MatchPair {

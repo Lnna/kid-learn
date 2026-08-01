@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
 import type { TapReadActivity } from '../../engine/types'
-import { speak, stopSpeak, unlockSpeak } from '../../utils/tts'
+import { speak, unlockSpeak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 import ActivityIcon from '../ui/ActivityIcon.vue'
@@ -57,13 +57,17 @@ function onTap(item: TapReadActivity['items'][0]) {
   playSfx('tap')
   if (props.tts === false) return
   clearWordTimer()
-  stopSpeak()
-  // 先读字母，间隔 1 秒再读单词
+  // 勿先 stopSpeak 再立刻 speak；由 speak() 处理打断与 cancel 间隔
   const letter = (item.speak || item.label).trim()
   const word = item.subLabel?.trim()
-  const lang = item.speakLang || (word ? 'en-US' : undefined)
+  // 仅英文点读走「字母 → 单词」；中文副标题（如浮与沉）不要二次打断主句
+  const enWord =
+    !!word &&
+    (item.speakLang?.toLowerCase().startsWith('en') ||
+      (!/[\u4e00-\u9fff]/.test(word) && /[a-zA-Z]/.test(word)))
+  const lang = item.speakLang || (enWord ? 'en-US' : undefined)
   speak(letter, { lang })
-  if (word) {
+  if (enWord && word) {
     wordTimer = setTimeout(() => {
       wordTimer = null
       speak(word, { lang })

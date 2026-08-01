@@ -7,21 +7,25 @@
       <text class="speaker__label">{{ activity.promptLabel || '点我听一听' }}</text>
     </view>
     <view class="options">
-      <view
-        v-for="opt in activity.options"
+      <ChoiceOption
+        v-for="(opt, i) in activity.options"
         :key="opt.id"
-        class="opt"
-        :class="{
+        :index="i"
+        :label="opt.label"
+        :speak="opt.speak"
+        :speak-lang="opt.speakLang"
+        :tts="tts"
+        :root-class="{
           correct: revealed && opt.id === activity.answerId,
           wrong: revealed && selected === opt.id && opt.id !== activity.answerId,
         }"
-        @click="choose(opt.id)"
+        @select="choose(opt.id)"
       >
         <view v-if="opt.icon" class="opt__icon">
           <ActivityIcon :name="opt.icon" :size="72" />
         </view>
         <text class="opt__label">{{ opt.label }}</text>
-      </view>
+      </ChoiceOption>
     </view>
   </view>
 </template>
@@ -32,6 +36,7 @@ import type { ListenChooseActivity } from '../../engine/types'
 import { speak, unlockSpeak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import ActivityIcon from '../ui/ActivityIcon.vue'
+import ChoiceOption from '../ui/ChoiceOption.vue'
 
 const props = defineProps<{ activity: ListenChooseActivity; color?: string; tts?: boolean }>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()
@@ -98,27 +103,6 @@ onMounted(() => setTimeout(playPrompt, 400))
   grid-template-columns: repeat(2, 1fr);
   gap: 20rpx;
 }
-.opt {
-  background: #fff;
-  border-radius: var(--radius-md);
-  padding: 32rpx 16rpx;
-  text-align: center;
-  border: 4rpx solid #f5ebd8;
-  min-height: 140rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-.opt.correct {
-  border-color: var(--color-success);
-  background: #e8fff3;
-}
-.opt.wrong {
-  border-color: var(--color-error);
-  background: #ffe8e8;
-  animation: wiggle 0.4s ease;
-}
 .opt__icon {
   font-size: 48rpx;
 }
@@ -126,5 +110,14 @@ onMounted(() => setTimeout(playPrompt, 400))
   font-size: 36rpx;
   font-weight: 700;
   margin-top: 8rpx;
+}
+:deep(.choice.correct) {
+  border-color: var(--color-success);
+  background: #e8fff3;
+}
+:deep(.choice.wrong) {
+  border-color: var(--color-error);
+  background: #ffe8e8;
+  animation: wiggle 0.4s ease;
 }
 </style>

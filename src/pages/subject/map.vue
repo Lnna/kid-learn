@@ -11,7 +11,7 @@
             <text class="head__desc">{{ subject?.description }}</text>
           </view>
           <view v-if="themeId" class="head__book" @click="goCollection">
-            <text class="head__book-icon">{{ subject?.emoji }}</text>
+            <ActivityIcon v-if="subject?.emoji" :name="subject.emoji" :size="48" />
             <text class="head__book-label">图鉴</text>
           </view>
         </view>
@@ -53,6 +53,7 @@ import { getLevelProgress, isLevelUnlocked, loadProgress } from '../../engine/pr
 import type { Subject, SubjectId, LevelProgress, ThemeId } from '../../engine/types'
 import Mascot from '../../components/ui/Mascot.vue'
 import StarRow from '../../components/ui/StarRow.vue'
+import ActivityIcon from '../../components/ui/ActivityIcon.vue'
 
 const subjectId = ref<SubjectId>('math')
 const subject = computed<Subject | null>(() => {
@@ -154,9 +155,6 @@ onShow(refresh)
   padding: 12rpx 20rpx;
   box-shadow: var(--shadow-soft);
   border: 3rpx solid color-mix(in srgb, var(--c) 40%, white);
-}
-.head__book-icon {
-  font-size: 44rpx;
 }
 .head__book-label {
   font-size: 22rpx;

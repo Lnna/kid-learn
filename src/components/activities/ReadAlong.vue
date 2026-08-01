@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { ReadAlongActivity, ReadAlongLine } from '../../engine/types'
-import { speak, stopSpeak } from '../../utils/tts'
+import { speak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 
@@ -53,7 +53,7 @@ function read(line: ReadAlongLine) {
 }
 
 function readAll() {
-  stopSpeak()
+  // 勿先 stopSpeak 再立刻 speak；speak() 会打断并错开 cancel 间隔
   let i = 0
   const lines = props.activity.lines
   const tick = () => {
