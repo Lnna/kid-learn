@@ -17,6 +17,9 @@ function defaultProgress(): AppProgress {
       science: emptySubject(),
       gem: emptySubject(),
       dino: emptySubject(),
+      town: emptySubject(),
+      princess: emptySubject(),
+      vehicle: emptySubject(),
     },
     settings: { ttsEnabled: true, sfxEnabled: true },
   }

@@ -80,6 +80,50 @@
       <ellipse cx="66" cy="84" rx="16" ry="10" fill="#C5E1A5"/>
       <path d="M28 96 Q14 92 12 78" fill="none" stroke="#2c2416" stroke-width="3" stroke-linecap="round"/>
     </svg>
+    <svg v-else-if="name === 'town'" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="58" cy="76" rx="34" ry="30" fill="#FFE3C2" stroke="#2c2416" stroke-width="3"/>
+      <path d="M30 50 L58 8 L86 50 Z" fill="#7C6BD9" stroke="#2c2416" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M52 32 l3 5 5 1 -3.5 3.5 1 5 -4.5-2.5 -4.5 2.5 1-5 -3.5-3.5 5-1 Z" fill="#FFD166"/>
+      <circle cx="58" cy="12" r="5" fill="#FFD166" stroke="#2c2416" stroke-width="2.5"/>
+      <ellipse cx="58" cy="52" rx="36" ry="9" fill="#5B4FB8" stroke="#2c2416" stroke-width="3"/>
+      <circle cx="47" cy="72" r="5" fill="#2c2416"/>
+      <circle cx="69" cy="72" r="5" fill="#2c2416"/>
+      <circle cx="49" cy="70" r="2" fill="#fff"/>
+      <circle cx="71" cy="70" r="2" fill="#fff"/>
+      <path d="M51 84 Q58 90 65 84" fill="none" stroke="#2c2416" stroke-width="2.5" stroke-linecap="round"/>
+      <ellipse cx="40" cy="82" rx="6" ry="4" fill="#FFB6C1" opacity="0.7"/>
+      <ellipse cx="76" cy="82" rx="6" ry="4" fill="#FFB6C1" opacity="0.7"/>
+      <rect x="86" y="76" width="26" height="18" rx="4" fill="#BFE3F7" stroke="#2c2416" stroke-width="3" transform="rotate(10 99 85)"/>
+      <path d="M92 84 L106 87 M92 89 L102 91" stroke="#4DA3FF" stroke-width="2" stroke-linecap="round" transform="rotate(10 99 85)"/>
+    </svg>
+    <svg v-else-if="name === 'princess'" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="60" cy="68" rx="40" ry="42" fill="#8A5A3B" stroke="#2c2416" stroke-width="3"/>
+      <path d="M26 118 Q60 90 94 118 L94 120 L26 120 Z" fill="#FF8FB8" stroke="#2c2416" stroke-width="3" stroke-linejoin="round"/>
+      <ellipse cx="60" cy="68" rx="29" ry="29" fill="#FFE3C2" stroke="#2c2416" stroke-width="3"/>
+      <path d="M38 40 L42 22 L52 34 L60 16 L68 34 L78 22 L82 40 Q60 32 38 40 Z" fill="#FFD166" stroke="#2c2416" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="60" cy="28" r="3" fill="#FF6B6B"/>
+      <circle cx="46" cy="32" r="2.5" fill="#4DA3FF"/>
+      <circle cx="74" cy="32" r="2.5" fill="#4DA3FF"/>
+      <path d="M46 66 Q51 61 56 66" fill="none" stroke="#2c2416" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M64 66 Q69 61 74 66" fill="none" stroke="#2c2416" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M54 78 Q60 84 66 78" fill="none" stroke="#2c2416" stroke-width="2.5" stroke-linecap="round"/>
+      <ellipse cx="44" cy="76" rx="6" ry="4" fill="#FFB6C1" opacity="0.8"/>
+      <ellipse cx="76" cy="76" rx="6" ry="4" fill="#FFB6C1" opacity="0.8"/>
+    </svg>
+    <svg v-else-if="name === 'vehicle'" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="60" cy="74" rx="36" ry="32" fill="#D4A574" stroke="#2c2416" stroke-width="3"/>
+      <path d="M26 60 Q26 28 60 28 Q94 28 94 60 L26 60 Z" fill="#FFC84A" stroke="#2c2416" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="60" cy="42" r="8" fill="#FFF3D6" stroke="#2c2416" stroke-width="2.5"/>
+      <rect x="22" y="56" width="76" height="10" rx="5" fill="#FFB020" stroke="#2c2416" stroke-width="3"/>
+      <circle cx="28" cy="72" r="7" fill="#D4A574" stroke="#2c2416" stroke-width="2.5"/>
+      <circle cx="92" cy="72" r="7" fill="#D4A574" stroke="#2c2416" stroke-width="2.5"/>
+      <circle cx="48" cy="78" r="5" fill="#2c2416"/>
+      <circle cx="72" cy="78" r="5" fill="#2c2416"/>
+      <circle cx="50" cy="76" r="2" fill="#fff"/>
+      <circle cx="74" cy="76" r="2" fill="#fff"/>
+      <ellipse cx="60" cy="88" rx="7" ry="5" fill="#2c2416"/>
+      <path d="M54 95 Q60 101 66 95" fill="none" stroke="#2c2416" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
     <svg v-else viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="60" cy="72" rx="36" ry="32" fill="#D4A574" stroke="#2c2416" stroke-width="3"/>
       <circle cx="32" cy="40" r="14" fill="#D4A574" stroke="#2c2416" stroke-width="3"/>
@@ -99,7 +143,7 @@
 <script setup lang="ts">
 withDefaults(
   defineProps<{
-    name: 'panda' | 'fox' | 'owl' | 'rabbit' | 'bear' | 'mole' | 'dino'
+    name: 'panda' | 'fox' | 'owl' | 'rabbit' | 'bear' | 'mole' | 'dino' | 'town' | 'princess' | 'vehicle'
     size?: number
   }>(),
   { size: 160 }

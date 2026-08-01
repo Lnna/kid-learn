@@ -10,7 +10,6 @@
         :class="{ active: activeId === item.id }"
         :style="{ borderColor: item.color || '#f5ebd8' }"
         @click="onTap(item)"
-        @tap="onTap(item)"
       >
         <text v-if="item.icon" class="card__icon">{{ item.icon }}</text>
         <text class="card__label">{{ item.label }}</text>

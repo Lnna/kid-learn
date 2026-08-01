@@ -6,12 +6,15 @@ import { nature } from '../data/nature'
 import { science } from '../data/science'
 import { gem } from '../data/gem'
 import { dino } from '../data/dino'
+import { town } from '../data/town'
+import { princess } from '../data/princess'
+import { vehicle } from '../data/vehicle'
 
 export const SUBJECTS: Subject[] = [chinese, math, english, nature, science]
 
-export const THEMES: Subject[] = [gem, dino]
+export const THEMES: Subject[] = [gem, dino, town, princess, vehicle]
 
-export const THEME_IDS: ThemeId[] = ['gem', 'dino']
+export const THEME_IDS: ThemeId[] = ['gem', 'dino', 'town', 'princess', 'vehicle']
 
 export const SUBJECT_MAP: Record<SubjectId, Subject> = {
   chinese,
@@ -21,10 +24,13 @@ export const SUBJECT_MAP: Record<SubjectId, Subject> = {
   science,
   gem,
   dino,
+  town,
+  princess,
+  vehicle,
 }
 
 export function isTheme(id: SubjectId): id is ThemeId {
-  return id === 'gem' || id === 'dino'
+  return (THEME_IDS as string[]).includes(id)
 }
 
 export function getSubject(id: SubjectId): Subject {

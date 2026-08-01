@@ -3,15 +3,18 @@ import type { CollectionState, ThemeId } from './types'
 
 const KEY = 'collection'
 
+const THEME_KEYS: ThemeId[] = ['gem', 'dino', 'town', 'princess', 'vehicle']
+
 function defaultState(): CollectionState {
-  return { unlocked: { gem: [], dino: [] } }
+  return { unlocked: { gem: [], dino: [], town: [], princess: [], vehicle: [] } }
 }
 
 export function loadCollection(): CollectionState {
   const s = getItem<CollectionState>(KEY, defaultState())
-  if (!s.unlocked) s.unlocked = { gem: [], dino: [] }
-  if (!Array.isArray(s.unlocked.gem)) s.unlocked.gem = []
-  if (!Array.isArray(s.unlocked.dino)) s.unlocked.dino = []
+  if (!s.unlocked) s.unlocked = defaultState().unlocked
+  THEME_KEYS.forEach((t) => {
+    if (!Array.isArray(s.unlocked[t])) s.unlocked[t] = []
+  })
   return s
 }
 

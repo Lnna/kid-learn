@@ -1,9 +1,19 @@
 /** 课程数据 Schema */
 
-export type SubjectId = 'chinese' | 'math' | 'english' | 'nature' | 'science' | 'gem' | 'dino'
+export type SubjectId =
+  | 'chinese'
+  | 'math'
+  | 'english'
+  | 'nature'
+  | 'science'
+  | 'gem'
+  | 'dino'
+  | 'town'
+  | 'princess'
+  | 'vehicle'
 
 /** 兴趣主题（基地里的门） */
-export type ThemeId = 'gem' | 'dino'
+export type ThemeId = 'gem' | 'dino' | 'town' | 'princess' | 'vehicle'
 
 export type ActivityType =
   | 'tap-read'
@@ -285,6 +295,45 @@ export interface DinoItem {
   era: string
   diet: '植食' | '肉食'
   length: string
+  facts: [string, string, string]
+}
+
+/** 小镇建筑图鉴 */
+export interface TownItem {
+  id: string
+  name: string
+  icon: string
+  /** 手绘 SVG 用的主色 */
+  color: string
+  /** 建筑用途，如「给大家看病的地方」 */
+  purpose: string
+  facts: [string, string, string]
+}
+
+/** 公主图鉴 */
+export interface PrincessItem {
+  id: string
+  name: string
+  /** 代表色 */
+  color: string
+  /** 一句话故事 */
+  story: string
+  /** 品质，如「勇敢」「善良」 */
+  quality: string
+  facts: [string, string, string]
+}
+
+/** 工程车图鉴 */
+export interface VehicleItem {
+  id: string
+  name: string
+  icon: string
+  /** 车身主色 */
+  color: string
+  /** 功能，如「挖土铲沙」 */
+  function: string
+  /** 数字参数，如铲斗容量、最高时速 */
+  stat: { label: string; value: number; unit: string }
   facts: [string, string, string]
 }
 

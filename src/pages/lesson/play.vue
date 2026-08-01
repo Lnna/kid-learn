@@ -46,6 +46,9 @@ import { calcStars, recordLevelResult, loadProgress } from '../../engine/progres
 import { unlockItems } from '../../engine/collection'
 import { MINERAL_MAP } from '../../data/gem/minerals'
 import { DINO_MAP } from '../../data/dino/dinosaurs'
+import { TOWN_MAP } from '../../data/town/town'
+import { PRINCESS_MAP } from '../../data/princess/princess'
+import { VEHICLE_MAP } from '../../data/vehicle/vehicle'
 import { setSfxEnabled } from '../../utils/sfx'
 import { unlockSpeak, stopSpeak } from '../../utils/tts'
 import type { Activity, Level, Subject, SubjectId } from '../../engine/types'
@@ -89,12 +92,21 @@ function finish() {
   finished.value = true
 }
 
+const REWARD_NAME_MAPS: Record<string, Record<string, { name: string }>> = {
+  gem: MINERAL_MAP,
+  dino: DINO_MAP,
+  town: TOWN_MAP,
+  princess: PRINCESS_MAP,
+  vehicle: VEHICLE_MAP,
+}
+
 function collectRewards() {
   if (!isTheme(subjectId.value)) return
   const rewards = level.value?.rewards || []
   const fresh = unlockItems(subjectId.value, rewards)
+  const map = REWARD_NAME_MAPS[subjectId.value]
   newUnlockNames.value = fresh
-    .map((id) => (subjectId.value === 'gem' ? MINERAL_MAP[id]?.name : DINO_MAP[id]?.name))
+    .map((id) => map?.[id]?.name)
     .filter((n): n is string => !!n)
 }
 

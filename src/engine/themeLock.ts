@@ -1,5 +1,6 @@
 import { getItem, setItem } from '../utils/storage'
 import { loadProgress } from './progress'
+import { THEME_IDS } from './catalog'
 import type { ThemeId } from './types'
 
 const KEY = 'themelock'
@@ -20,15 +21,13 @@ export function saveThemeLock(s: ThemeLockState): void {
   setItem(KEY, s)
 }
 
-/** 两个主题合计已获星星 */
+/** 所有主题合计已获星星 */
 export function themeTotalStars(): number {
   const p = loadProgress()
-  const gem = p.subjects.gem?.totalStars || 0
-  const dino = p.subjects.dino?.totalStars || 0
-  return gem + dino
+  return THEME_IDS.reduce((sum, id) => sum + (p.subjects[id]?.totalStars || 0), 0)
 }
 
-/** 是否已开启时空穿梭（两门自由进出） */
+/** 是否已开启时空穿梭（各门自由进出） */
 export function shuttleUnlocked(): boolean {
   return themeTotalStars() >= SHUTTLE_STARS
 }

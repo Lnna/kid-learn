@@ -11,7 +11,7 @@
             <text class="head__desc">{{ subject?.description }}</text>
           </view>
           <view v-if="themeId" class="head__book" @click="goCollection">
-            <text class="head__book-icon">{{ themeId === 'gem' ? '💎' : '🦖' }}</text>
+            <text class="head__book-icon">{{ subject?.emoji }}</text>
             <text class="head__book-label">图鉴</text>
           </view>
         </view>

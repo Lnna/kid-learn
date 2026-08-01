@@ -39,7 +39,6 @@
         <text class="coming__label">更多主题筹备中</text>
         <view class="coming__row">
           <view class="coming__chip">🚀 宇宙空间站</view>
-          <view class="coming__chip">🏰 童话小镇</view>
         </view>
       </view>
     </view>
@@ -80,10 +79,11 @@ const themeCards = computed(() =>
 
 function refresh() {
   const p = loadProgress()
-  subjectStars.value = {
-    gem: p.subjects.gem?.totalStars || 0,
-    dino: p.subjects.dino?.totalStars || 0,
-  }
+  const stars: Record<string, number> = {}
+  THEMES.forEach((t) => {
+    stars[t.id] = p.subjects[t.id]?.totalStars || 0
+  })
+  subjectStars.value = stars
   totalStars.value = themeTotalStars()
   shuttle.value = shuttleUnlocked()
   chosen.value = loadThemeLock().chosen

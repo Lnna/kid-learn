@@ -4,7 +4,6 @@
     :class="[`k-btn--${variant}`, `k-btn--${size}`, { 'k-btn--block': block, 'k-btn--disabled': disabled }]"
     :style="themeStyle"
     @click="onClick"
-    @tap="onClick"
   >
     <text class="k-btn__text">{{ label }}</text>
     <slot />

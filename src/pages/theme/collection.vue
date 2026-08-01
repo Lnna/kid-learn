@@ -4,7 +4,7 @@
     <view class="coll__inner">
       <view class="top">
         <view class="back" @click="goBack">← 返回</view>
-        <text class="title">{{ isGem ? '宝石收藏册' : '侏罗纪公园' }}</text>
+        <text class="title">{{ pageTitle }}</text>
         <text class="subtitle">{{ unlockedCount }} / {{ totalCount }} 已收集</text>
       </view>
 
@@ -24,7 +24,7 @@
       </view>
 
       <!-- 恐龙：公园场景 -->
-      <view v-else class="park">
+      <view v-else-if="isDino" class="park">
         <view class="park__scene">
           <text class="park__sun">☀️</text>
           <text class="park__tree park__tree--1">🌴</text>
@@ -54,6 +54,27 @@
             <text v-if="unlockedSet.has(d.id)" class="park__slot-name">✓ {{ d.name }}</text>
             <text v-else class="park__slot-lock">🔒 ???</text>
           </view>
+        </view>
+      </view>
+
+      <!-- 小镇 / 公主 / 工程车：通用卡册网格 -->
+      <view v-else class="mineral-grid">
+        <view
+          v-for="it in albumItems"
+          :key="it.id"
+          class="mineral-card"
+          :class="{ locked: !unlockedSet.has(it.id) }"
+          @click="openAlbum(it.id)"
+        >
+          <view
+            v-if="unlockedSet.has(it.id)"
+            class="album-card__badge"
+            :style="{ background: albumSoftBg(it.color) }"
+          >
+            <text class="album-card__emoji">{{ albumEmoji(it) }}</text>
+          </view>
+          <view v-else class="mineral-card__silhouette">?</view>
+          <text class="mineral-card__name">{{ unlockedSet.has(it.id) ? it.name : lockedName }}</text>
         </view>
       </view>
 
@@ -134,6 +155,40 @@
           <KButton label="关上" variant="soft" :color="themeColor" block @click="closeModal" />
         </view>
       </view>
+
+      <!-- 小镇 / 公主 / 工程车：通用详情弹层 -->
+      <view v-if="activeAlbum" class="modal" @click="closeModal">
+        <view class="modal__card" @click.stop>
+          <view class="modal__head">
+            <view class="album-badge" :style="{ background: albumSoftBg(activeAlbum.color) }">
+              <text class="album-badge__emoji">{{ albumEmoji(activeAlbum) }}</text>
+            </view>
+            <view>
+              <text class="modal__name">{{ activeAlbum.name }}</text>
+              <text class="modal__sub">{{ albumSub }}</text>
+            </view>
+          </view>
+          <view class="modal__body">
+            <!-- 公主：代表色 + 一句话故事 -->
+            <template v-if="activePrincess">
+              <view class="album-color-row">
+                代表色：<text class="streak-dot" :style="{ background: activePrincess.color }" />
+              </view>
+              <text class="album-story">{{ activePrincess.story }}</text>
+            </template>
+            <!-- 工程车：数字参数 -->
+            <view v-else-if="activeVehicle" class="stat-pill">
+              <text class="stat-pill__label">{{ activeVehicle.stat.label }}</text>
+              <text class="stat-pill__value">{{ activeVehicle.stat.value }}{{ activeVehicle.stat.unit }}</text>
+            </view>
+            <view v-for="(f, i) in activeAlbum.facts" :key="i" class="fact">
+              <text class="fact__num">{{ i + 1 }}</text>
+              <text class="fact__text">{{ f }}</text>
+            </view>
+          </view>
+          <KButton label="合上" variant="soft" :color="themeColor" block @click="closeModal" />
+        </view>
+      </view>
     </view>
   </view>
 </template>
@@ -145,17 +200,25 @@ import { getSubject } from '../../engine/catalog'
 import { getUnlocked } from '../../engine/collection'
 import { MINERALS } from '../../data/gem/minerals'
 import { DINOSAURS } from '../../data/dino/dinosaurs'
-import type { MineralItem, DinoItem, ThemeId } from '../../engine/types'
+import { TOWN_ITEMS, TOWN_MAP } from '../../data/town/town'
+import { PRINCESS_ITEMS, PRINCESS_MAP } from '../../data/princess/princess'
+import { VEHICLE_ITEMS, VEHICLE_MAP } from '../../data/vehicle/vehicle'
+import type { MineralItem, DinoItem, TownItem, PrincessItem, VehicleItem, ThemeId } from '../../engine/types'
 import { playSfx } from '../../utils/sfx'
 import { speak } from '../../utils/tts'
 import MineralIcon from '../../components/theme/MineralIcon.vue'
 import DinoIcon from '../../components/theme/DinoIcon.vue'
 import KButton from '../../components/ui/KButton.vue'
 
+type AlbumItem = TownItem | PrincessItem | VehicleItem
+
 const theme = ref<ThemeId>('gem')
 const unlockedSet = ref<Set<string>>(new Set())
 const activeMineral = ref<MineralItem | null>(null)
 const activeDino = ref<DinoItem | null>(null)
+const activeTown = ref<TownItem | null>(null)
+const activePrincess = ref<PrincessItem | null>(null)
+const activeVehicle = ref<VehicleItem | null>(null)
 const mineralTab = ref<'look' | 'secret' | 'where'>('look')
 
 const mineralTabs = [
@@ -164,11 +227,52 @@ const mineralTabs = [
   { id: 'where' as const, label: '它在哪里' },
 ]
 
+const PAGE_TITLES: Record<ThemeId, string> = {
+  gem: '宝石收藏册',
+  dino: '侏罗纪公园',
+  town: '小镇建筑卡册',
+  princess: '公主卡册',
+  vehicle: '工程车队卡册',
+}
+
+const LOCKED_NAMES: Record<ThemeId, string> = {
+  gem: '未知矿物',
+  dino: '未知恐龙',
+  town: '未知建筑',
+  princess: '神秘公主',
+  vehicle: '未知车辆',
+}
+
 const isGem = computed(() => theme.value === 'gem')
+const isDino = computed(() => theme.value === 'dino')
 const themeColor = computed(() => getSubject(theme.value).color)
-const totalCount = computed(() => (isGem.value ? MINERALS.length : DINOSAURS.length))
+const pageTitle = computed(() => PAGE_TITLES[theme.value])
+const lockedName = computed(() => LOCKED_NAMES[theme.value])
+
+const albumItems = computed<AlbumItem[]>(() => {
+  if (theme.value === 'town') return TOWN_ITEMS
+  if (theme.value === 'princess') return PRINCESS_ITEMS
+  if (theme.value === 'vehicle') return VEHICLE_ITEMS
+  return []
+})
+
+const totalCount = computed(() => {
+  if (isGem.value) return MINERALS.length
+  if (isDino.value) return DINOSAURS.length
+  return albumItems.value.length
+})
 const unlockedCount = computed(() => unlockedSet.value.size)
 const unlockedDinos = computed(() => DINOSAURS.filter((d) => unlockedSet.value.has(d.id)))
+
+const activeAlbum = computed<AlbumItem | null>(
+  () => activeTown.value || activePrincess.value || activeVehicle.value
+)
+const albumSub = computed(() => {
+  if (activeTown.value) return activeTown.value.purpose
+  if (activePrincess.value) return `品质：${activePrincess.value.quality}`
+  if (activeVehicle.value) return activeVehicle.value.function
+  return ''
+})
 
 const streakName = computed(() => {
   const c = (activeMineral.value?.streakColor || '').toUpperCase()
@@ -205,9 +309,45 @@ function openDino(d: DinoItem) {
   speak(d.name)
 }
 
+function albumEmoji(it: AlbumItem): string {
+  return 'icon' in it && it.icon ? it.icon : '👑'
+}
+
+function albumSoftBg(color: string): string {
+  return `color-mix(in srgb, ${color} 22%, white)`
+}
+
+function openAlbum(id: string) {
+  if (!unlockedSet.value.has(id)) {
+    playSfx('wrong')
+    uni.showToast({ title: '还没收集到，继续闯关吧', icon: 'none' })
+    return
+  }
+  playSfx('tap')
+  if (theme.value === 'town') {
+    const it = TOWN_MAP[id]
+    if (!it) return
+    activeTown.value = it
+    speak(it.name)
+  } else if (theme.value === 'princess') {
+    const it = PRINCESS_MAP[id]
+    if (!it) return
+    activePrincess.value = it
+    speak(it.name)
+  } else if (theme.value === 'vehicle') {
+    const it = VEHICLE_MAP[id]
+    if (!it) return
+    activeVehicle.value = it
+    speak(it.name)
+  }
+}
+
 function closeModal() {
   activeMineral.value = null
   activeDino.value = null
+  activeTown.value = null
+  activePrincess.value = null
+  activeVehicle.value = null
 }
 
 function goBack() {
@@ -215,7 +355,10 @@ function goBack() {
 }
 
 onLoad((q) => {
-  if (q?.theme === 'dino') theme.value = 'dino'
+  const t = q?.theme as ThemeId | undefined
+  if (t && ['gem', 'dino', 'town', 'princess', 'vehicle'].includes(t)) {
+    theme.value = t
+  }
 })
 onShow(refresh)
 </script>
@@ -304,6 +447,64 @@ onShow(refresh)
   font-size: 24rpx;
   font-weight: 700;
   color: var(--color-ink);
+}
+.album-card__badge {
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0 auto;
+  border-radius: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.album-card__emoji {
+  font-size: 56rpx;
+}
+.album-badge {
+  width: 110rpx;
+  height: 110rpx;
+  border-radius: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.album-badge__emoji {
+  font-size: 68rpx;
+}
+.album-color-row {
+  font-size: 26rpx;
+  color: var(--color-ink);
+  margin-bottom: 14rpx;
+}
+.album-story {
+  display: block;
+  font-size: 28rpx;
+  color: var(--color-ink);
+  line-height: 1.6;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  padding: 18rpx;
+  margin-bottom: 16rpx;
+}
+.stat-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 999rpx;
+  padding: 16rpx 24rpx;
+  margin-bottom: 16rpx;
+  border: 3rpx solid #f0e6d2;
+}
+.stat-pill__label {
+  font-size: 26rpx;
+  color: var(--color-muted);
+}
+.stat-pill__value {
+  font-size: 34rpx;
+  font-weight: 900;
+  color: var(--c);
 }
 .park__scene {
   position: relative;

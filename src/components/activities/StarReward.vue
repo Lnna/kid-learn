@@ -56,7 +56,7 @@ withDefaults(
   defineProps<{
     stars: number
     color?: string
-    mascot?: 'panda' | 'fox' | 'owl' | 'rabbit' | 'bear' | 'mole' | 'dino'
+    mascot?: 'panda' | 'fox' | 'owl' | 'rabbit' | 'bear' | 'mole' | 'dino' | 'town' | 'princess' | 'vehicle'
     title?: string
     newUnlocks?: string[]
   }>(),
