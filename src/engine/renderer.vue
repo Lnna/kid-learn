@@ -62,6 +62,20 @@
       :tts="tts"
       @done="onDone"
     />
+    <GridDig
+      v-else-if="activity.type === 'grid-dig'"
+      :activity="activity"
+      :color="color"
+      :tts="tts"
+      @done="onDone"
+    />
+    <RockLab
+      v-else-if="activity.type === 'rock-lab'"
+      :activity="activity"
+      :color="color"
+      :tts="tts"
+      @done="onDone"
+    />
   </view>
 </template>
 
@@ -76,6 +90,8 @@ import QuizPop from '../components/activities/QuizPop.vue'
 import SequenceFun from '../components/activities/SequenceFun.vue'
 import MiniLab from '../components/activities/MiniLab.vue'
 import ReadAlong from '../components/activities/ReadAlong.vue'
+import GridDig from '../components/activities/GridDig.vue'
+import RockLab from '../components/activities/RockLab.vue'
 
 defineProps<{ activity: Activity; color?: string; tts?: boolean }>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()

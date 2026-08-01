@@ -54,6 +54,32 @@
       <ellipse cx="40" cy="82" rx="7" ry="5" fill="#FFB6C1" opacity="0.8"/>
       <ellipse cx="80" cy="82" rx="7" ry="5" fill="#FFB6C1" opacity="0.8"/>
     </svg>
+    <svg v-else-if="name === 'mole'" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="60" cy="76" rx="36" ry="30" fill="#8D6E63" stroke="#2c2416" stroke-width="3"/>
+      <circle cx="30" cy="52" r="12" fill="#8D6E63" stroke="#2c2416" stroke-width="3"/>
+      <circle cx="90" cy="52" r="12" fill="#8D6E63" stroke="#2c2416" stroke-width="3"/>
+      <path d="M34 52 Q60 34 86 52 L82 34 Q60 22 38 34 Z" fill="#FFC84A" stroke="#2c2416" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="60" cy="26" r="8" fill="#FFF3D6" stroke="#2c2416" stroke-width="3"/>
+      <circle cx="48" cy="70" r="5" fill="#2c2416"/>
+      <circle cx="72" cy="70" r="5" fill="#2c2416"/>
+      <circle cx="50" cy="68" r="2" fill="#fff"/>
+      <circle cx="74" cy="68" r="2" fill="#fff"/>
+      <ellipse cx="60" cy="84" rx="10" ry="7" fill="#F8BBD0" stroke="#2c2416" stroke-width="2.5"/>
+      <path d="M42 92 Q60 100 78 92" fill="none" stroke="#2c2416" stroke-width="2.5" stroke-linecap="round"/>
+      <ellipse cx="20" cy="90" rx="9" ry="6" fill="#F8BBD0" stroke="#2c2416" stroke-width="2.5"/>
+      <ellipse cx="100" cy="90" rx="9" ry="6" fill="#F8BBD0" stroke="#2c2416" stroke-width="2.5"/>
+    </svg>
+    <svg v-else-if="name === 'dino'" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <path d="M28 96 Q20 60 44 40 L60 30 Q92 20 100 48 L102 58 Q104 84 82 92 L40 100 Z" fill="#7CB342" stroke="#2c2416" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="78" cy="48" r="6" fill="#2c2416"/>
+      <circle cx="80" cy="46" r="2" fill="#fff"/>
+      <path d="M88 62 Q94 68 100 64" fill="none" stroke="#2c2416" stroke-width="3" stroke-linecap="round"/>
+      <polygon points="40,44 46,28 52,42" fill="#FFF3D6" stroke="#2c2416" stroke-width="2.5" stroke-linejoin="round"/>
+      <polygon points="54,36 60,22 66,34" fill="#FFF3D6" stroke="#2c2416" stroke-width="2.5" stroke-linejoin="round"/>
+      <polygon points="68,32 74,20 80,32" fill="#FFF3D6" stroke="#2c2416" stroke-width="2.5" stroke-linejoin="round"/>
+      <ellipse cx="66" cy="84" rx="16" ry="10" fill="#C5E1A5"/>
+      <path d="M28 96 Q14 92 12 78" fill="none" stroke="#2c2416" stroke-width="3" stroke-linecap="round"/>
+    </svg>
     <svg v-else viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="60" cy="72" rx="36" ry="32" fill="#D4A574" stroke="#2c2416" stroke-width="3"/>
       <circle cx="32" cy="40" r="14" fill="#D4A574" stroke="#2c2416" stroke-width="3"/>
@@ -72,7 +98,10 @@
 
 <script setup lang="ts">
 withDefaults(
-  defineProps<{ name: 'panda' | 'fox' | 'owl' | 'rabbit' | 'bear'; size?: number }>(),
+  defineProps<{
+    name: 'panda' | 'fox' | 'owl' | 'rabbit' | 'bear' | 'mole' | 'dino'
+    size?: number
+  }>(),
   { size: 160 }
 )
 </script>

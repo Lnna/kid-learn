@@ -3,7 +3,7 @@
     <view class="home__bg" />
     <view class="home__inner">
       <view class="hero">
-        <text class="brand">小小衔</text>
+        <text class="brand">小小花</text>
         <text class="tagline">幼小衔接 · 玩着学会</text>
         <view class="hero-mascot">
           <Mascot name="panda" :size="140" />
@@ -30,6 +30,18 @@
             <text class="subject-card__stars">★ {{ starOf(s.id) }}</text>
           </view>
         </view>
+      </view>
+
+      <view class="theme-entry anim-bounce" @click="goThemeBase">
+        <view class="theme-entry__doors">
+          <text class="theme-entry__door">💎</text>
+          <text class="theme-entry__door">🦖</text>
+        </view>
+        <view class="theme-entry__info">
+          <text class="theme-entry__name">主题基地</text>
+          <text class="theme-entry__desc">宝石矿洞 · 恐龙营地，选你喜欢的去探险</text>
+        </view>
+        <text class="theme-entry__arrow">→</text>
       </view>
 
       <view class="footer-nav">
@@ -78,6 +90,11 @@ function starOf(id: string) {
 function goSubject(id: SubjectId) {
   unlockSpeak()
   uni.navigateTo({ url: `/pages/subject/map?id=${id}` })
+}
+
+function goThemeBase() {
+  unlockSpeak()
+  uni.navigateTo({ url: '/pages/theme/base' })
 }
 
 function goParent() {
@@ -205,6 +222,48 @@ onShow(refresh)
   font-size: 26rpx;
   color: var(--color-star);
   font-weight: 700;
+}
+.theme-entry {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 28rpx;
+  background: linear-gradient(120deg, #26a69a, #e67e22);
+  border-radius: var(--radius-lg);
+  padding: 28rpx;
+  box-shadow: var(--shadow-pop);
+}
+.theme-entry:active {
+  transform: scale(0.98);
+}
+.theme-entry__doors {
+  display: flex;
+  gap: 8rpx;
+}
+.theme-entry__door {
+  font-size: 56rpx;
+  filter: drop-shadow(0 4rpx 6rpx rgba(0, 0, 0, 0.2));
+}
+.theme-entry__info {
+  flex: 1;
+  min-width: 0;
+}
+.theme-entry__name {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 900;
+  color: #fff;
+}
+.theme-entry__desc {
+  display: block;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 4rpx;
+}
+.theme-entry__arrow {
+  font-size: 48rpx;
+  color: #fff;
+  font-weight: 800;
 }
 .footer-nav {
   display: flex;

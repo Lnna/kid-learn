@@ -6,9 +6,13 @@
         <view class="back" @click="goBack">← 返回</view>
         <view class="head">
           <Mascot v-if="subject" :name="subject.mascot as any" :size="96" />
-          <view>
+          <view class="head__mid">
             <text class="head__name">{{ subject?.name }}</text>
             <text class="head__desc">{{ subject?.description }}</text>
+          </view>
+          <view v-if="themeId" class="head__book" @click="goCollection">
+            <text class="head__book-icon">{{ themeId === 'gem' ? '💎' : '🦖' }}</text>
+            <text class="head__book-label">图鉴</text>
           </view>
         </view>
       </view>
@@ -44,9 +48,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { getSubject, getAllLevelIds } from '../../engine/catalog'
+import { getSubject, getAllLevelIds, isTheme } from '../../engine/catalog'
 import { getLevelProgress, isLevelUnlocked, loadProgress } from '../../engine/progress'
-import type { Subject, SubjectId, LevelProgress } from '../../engine/types'
+import type { Subject, SubjectId, LevelProgress, ThemeId } from '../../engine/types'
 import Mascot from '../../components/ui/Mascot.vue'
 import StarRow from '../../components/ui/StarRow.vue'
 
@@ -60,6 +64,7 @@ const subject = computed<Subject | null>(() => {
 })
 const progress = ref<Record<string, LevelProgress>>({})
 const unlocked = ref<Record<string, boolean>>({})
+const themeId = computed<ThemeId | null>(() => (isTheme(subjectId.value) ? subjectId.value : null))
 
 function refresh() {
   const s = subject.value
@@ -84,6 +89,12 @@ function openLevel(levelId: string) {
   uni.navigateTo({
     url: `/pages/lesson/play?subject=${subjectId.value}&level=${levelId}`,
   })
+}
+
+function goCollection() {
+  if (themeId.value) {
+    uni.navigateTo({ url: `/pages/theme/collection?theme=${themeId.value}` })
+  }
 }
 
 function goBack() {
@@ -129,6 +140,28 @@ onShow(refresh)
   align-items: center;
   gap: 20rpx;
   margin-bottom: 32rpx;
+}
+.head__mid {
+  flex: 1;
+  min-width: 0;
+}
+.head__book {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  border-radius: var(--radius-md);
+  padding: 12rpx 20rpx;
+  box-shadow: var(--shadow-soft);
+  border: 3rpx solid color-mix(in srgb, var(--c) 40%, white);
+}
+.head__book-icon {
+  font-size: 44rpx;
+}
+.head__book-label {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: var(--c);
 }
 .head__name {
   display: block;

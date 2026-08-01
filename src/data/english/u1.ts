@@ -16,13 +16,17 @@ export const englishUnit1 = unit(
   '字母乐园',
   [
     level('english-1-01', 'Letters A-E', [
-      tapRead('点读 A-E', [
-        { id: 'a', label: 'A a', speak: 'A', speakLang: EN, icon: '🍎', subLabel: 'apple' },
-        { id: 'b', label: 'B b', speak: 'B', speakLang: EN, icon: '🐻', subLabel: 'bear' },
-        { id: 'c', label: 'C c', speak: 'C', speakLang: EN, icon: '🐱', subLabel: 'cat' },
-        { id: 'd', label: 'D d', speak: 'D', speakLang: EN, icon: '🐶', subLabel: 'dog' },
-        { id: 'e', label: 'E e', speak: 'E', speakLang: EN, icon: '🐘', subLabel: 'elephant' },
-      ]),
+      tapRead(
+        '点读 A-E',
+        [
+          { id: 'a', label: 'A a', speak: 'A', speakLang: EN, icon: '🍎', subLabel: 'apple' },
+          { id: 'b', label: 'B b', speak: 'B', speakLang: EN, icon: '🐻', subLabel: 'bear' },
+          { id: 'c', label: 'C c', speak: 'C', speakLang: EN, icon: '🐱', subLabel: 'cat' },
+          { id: 'd', label: 'D d', speak: 'D', speakLang: EN, icon: '🐶', subLabel: 'dog' },
+          { id: 'e', label: 'E e', speak: 'E', speakLang: EN, icon: '🐘', subLabel: 'elephant' },
+        ],
+        '点字母，听字母和单词'
+      ),
       tracing('描字母 A-E', [
         { id: 'ta', char: 'A', speak: 'A', grid: 'english' },
         { id: 'tb', char: 'B', speak: 'B', grid: 'english' },
@@ -44,13 +48,17 @@ export const englishUnit1 = unit(
     ], '认识 A 到 E'),
 
     level('english-1-02', 'Letters F-J', [
-      tapRead('点读 F-J', [
-        { id: 'f', label: 'F f', speak: 'F', speakLang: EN, icon: '🐟', subLabel: 'fish' },
-        { id: 'g', label: 'G g', speak: 'G', speakLang: EN, icon: '🐐', subLabel: 'goat' },
-        { id: 'h', label: 'H h', speak: 'H', speakLang: EN, icon: '🏠', subLabel: 'house' },
-        { id: 'i', label: 'I i', speak: 'I', speakLang: EN, icon: '🍦', subLabel: 'ice cream' },
-        { id: 'j', label: 'J j', speak: 'J', speakLang: EN, icon: '🧃', subLabel: 'juice' },
-      ]),
+      tapRead(
+        '点读 F-J',
+        [
+          { id: 'f', label: 'F f', speak: 'F', speakLang: EN, icon: '🐟', subLabel: 'fish' },
+          { id: 'g', label: 'G g', speak: 'G', speakLang: EN, icon: '🐐', subLabel: 'goat' },
+          { id: 'h', label: 'H h', speak: 'H', speakLang: EN, icon: '🏠', subLabel: 'house' },
+          { id: 'i', label: 'I i', speak: 'I', speakLang: EN, icon: '🍦', subLabel: 'ice cream' },
+          { id: 'j', label: 'J j', speak: 'J', speakLang: EN, icon: '🧃', subLabel: 'juice' },
+        ],
+        '点字母，听字母和单词'
+      ),
       tracing('描字母 F-J', [
         { id: 'tf', char: 'F', speak: 'F', grid: 'english' },
         { id: 'tg', char: 'G', speak: 'G', grid: 'english' },
@@ -68,13 +76,17 @@ export const englishUnit1 = unit(
     ], '认识 F 到 J'),
 
     level('english-1-03', 'Letters K-O', [
-      tapRead('点读 K-O', [
-        { id: 'k', label: 'K k', speak: 'K', speakLang: EN, icon: '🪁', subLabel: 'kite' },
-        { id: 'l', label: 'L l', speak: 'L', speakLang: EN, icon: '🦁', subLabel: 'lion' },
-        { id: 'm', label: 'M m', speak: 'M', speakLang: EN, icon: '🐵', subLabel: 'monkey' },
-        { id: 'n', label: 'N n', speak: 'N', speakLang: EN, icon: '🪺', subLabel: 'nest' },
-        { id: 'o', label: 'O o', speak: 'O', speakLang: EN, icon: '🐙', subLabel: 'octopus' },
-      ]),
+      tapRead(
+        '点读 K-O',
+        [
+          { id: 'k', label: 'K k', speak: 'K', speakLang: EN, icon: '🪁', subLabel: 'kite' },
+          { id: 'l', label: 'L l', speak: 'L', speakLang: EN, icon: '🦁', subLabel: 'lion' },
+          { id: 'm', label: 'M m', speak: 'M', speakLang: EN, icon: '🐵', subLabel: 'monkey' },
+          { id: 'n', label: 'N n', speak: 'N', speakLang: EN, icon: '🪺', subLabel: 'nest' },
+          { id: 'o', label: 'O o', speak: 'O', speakLang: EN, icon: '🐙', subLabel: 'octopus' },
+        ],
+        '点字母，听字母和单词'
+      ),
       tracing('描字母 K-O', [
         { id: 'tk', char: 'K', speak: 'K', grid: 'english' },
         { id: 'tl', char: 'L', speak: 'L', grid: 'english' },
@@ -96,13 +108,17 @@ export const englishUnit1 = unit(
     ], '认识 K 到 O'),
 
     level('english-1-04', 'Letters P-T', [
-      tapRead('点读 P-T', [
-        { id: 'p', label: 'P p', speak: 'P', speakLang: EN, icon: '🐷', subLabel: 'pig' },
-        { id: 'q', label: 'Q q', speak: 'Q', speakLang: EN, icon: '👸', subLabel: 'queen' },
-        { id: 'r', label: 'R r', speak: 'R', speakLang: EN, icon: '🐰', subLabel: 'rabbit' },
-        { id: 's', label: 'S s', speak: 'S', speakLang: EN, icon: '☀️', subLabel: 'sun' },
-        { id: 't', label: 'T t', speak: 'T', speakLang: EN, icon: '🐯', subLabel: 'tiger' },
-      ]),
+      tapRead(
+        '点读 P-T',
+        [
+          { id: 'p', label: 'P p', speak: 'P', speakLang: EN, icon: '🐷', subLabel: 'pig' },
+          { id: 'q', label: 'Q q', speak: 'Q', speakLang: EN, icon: '👸', subLabel: 'queen' },
+          { id: 'r', label: 'R r', speak: 'R', speakLang: EN, icon: '🐰', subLabel: 'rabbit' },
+          { id: 's', label: 'S s', speak: 'S', speakLang: EN, icon: '☀️', subLabel: 'sun' },
+          { id: 't', label: 'T t', speak: 'T', speakLang: EN, icon: '🐯', subLabel: 'tiger' },
+        ],
+        '点字母，听字母和单词'
+      ),
       tracing('描字母 P-T', [
         { id: 'tp', char: 'P', speak: 'P', grid: 'english' },
         { id: 'tq', char: 'Q', speak: 'Q', grid: 'english' },
@@ -145,14 +161,18 @@ export const englishUnit1 = unit(
     ], '认识 P 到 T'),
 
     level('english-1-05', 'Letters U-Z', [
-      tapRead('点读 U-Z', [
-        { id: 'u', label: 'U u', speak: 'U', speakLang: EN, icon: '☂️', subLabel: 'umbrella' },
-        { id: 'v', label: 'V v', speak: 'V', speakLang: EN, icon: '🎻', subLabel: 'violin' },
-        { id: 'w', label: 'W w', speak: 'W', speakLang: EN, icon: '🍉', subLabel: 'watermelon' },
-        { id: 'x', label: 'X x', speak: 'X', speakLang: EN, icon: '📦', subLabel: 'box' },
-        { id: 'y', label: 'Y y', speak: 'Y', speakLang: EN, icon: '💛', subLabel: 'yellow' },
-        { id: 'z', label: 'Z z', speak: 'Z', speakLang: EN, icon: '🦓', subLabel: 'zebra' },
-      ]),
+      tapRead(
+        '点读 U-Z',
+        [
+          { id: 'u', label: 'U u', speak: 'U', speakLang: EN, icon: '☂️', subLabel: 'umbrella' },
+          { id: 'v', label: 'V v', speak: 'V', speakLang: EN, icon: '🎻', subLabel: 'violin' },
+          { id: 'w', label: 'W w', speak: 'W', speakLang: EN, icon: '🍉', subLabel: 'watermelon' },
+          { id: 'x', label: 'X x', speak: 'X', speakLang: EN, icon: '📦', subLabel: 'box' },
+          { id: 'y', label: 'Y y', speak: 'Y', speakLang: EN, icon: '💛', subLabel: 'yellow' },
+          { id: 'z', label: 'Z z', speak: 'Z', speakLang: EN, icon: '🦓', subLabel: 'zebra' },
+        ],
+        '点字母，听字母和单词'
+      ),
       tracing('描字母 U-Z', [
         { id: 'tu', char: 'U', speak: 'U', grid: 'english' },
         { id: 'tv', char: 'V', speak: 'V', grid: 'english' },
@@ -178,14 +198,18 @@ export const englishUnit1 = unit(
     ], '认识 U 到 Z'),
 
     level('english-1-06', 'Letter Sounds 1', [
-      tapRead('字母发音 A-M', [
-        { id: 'a', label: 'A', speak: 'a', speakLang: EN, subLabel: 'apple' },
-        { id: 'b', label: 'B', speak: 'b', speakLang: EN, subLabel: 'ball' },
-        { id: 'c', label: 'C', speak: 'c', speakLang: EN, subLabel: 'cat' },
-        { id: 'd', label: 'D', speak: 'd', speakLang: EN, subLabel: 'dog' },
-        { id: 'f', label: 'F', speak: 'f', speakLang: EN, subLabel: 'fish' },
-        { id: 'm', label: 'M', speak: 'm', speakLang: EN, subLabel: 'mom' },
-      ]),
+      tapRead(
+        '字母发音 A-M',
+        [
+          { id: 'a', label: 'A', speak: 'A', speakLang: EN, icon: '🍎', subLabel: 'apple' },
+          { id: 'b', label: 'B', speak: 'B', speakLang: EN, icon: '⚽', subLabel: 'ball' },
+          { id: 'c', label: 'C', speak: 'C', speakLang: EN, icon: '🐱', subLabel: 'cat' },
+          { id: 'd', label: 'D', speak: 'D', speakLang: EN, icon: '🐶', subLabel: 'dog' },
+          { id: 'f', label: 'F', speak: 'F', speakLang: EN, icon: '🐟', subLabel: 'fish' },
+          { id: 'm', label: 'M', speak: 'M', speakLang: EN, icon: '👩', subLabel: 'mom' },
+        ],
+        '点字母，听字母和单词'
+      ),
       listenChoose(
         '听发音选字母',
         'b',
@@ -206,14 +230,18 @@ export const englishUnit1 = unit(
     ], '字母发音入门'),
 
     level('english-1-07', 'Letter Sounds 2', [
-      tapRead('字母发音 N-Z', [
-        { id: 'n', label: 'N', speak: 'n', speakLang: EN, subLabel: 'nose' },
-        { id: 'p', label: 'P', speak: 'p', speakLang: EN, subLabel: 'pen' },
-        { id: 's', label: 'S', speak: 's', speakLang: EN, subLabel: 'sun' },
-        { id: 't', label: 'T', speak: 't', speakLang: EN, subLabel: 'top' },
-        { id: 'r', label: 'R', speak: 'r', speakLang: EN, subLabel: 'red' },
-        { id: 'z', label: 'Z', speak: 'z', speakLang: EN, subLabel: 'zoo' },
-      ]),
+      tapRead(
+        '字母发音 N-Z',
+        [
+          { id: 'n', label: 'N', speak: 'N', speakLang: EN, icon: '👃', subLabel: 'nose' },
+          { id: 'p', label: 'P', speak: 'P', speakLang: EN, icon: '🖊️', subLabel: 'pen' },
+          { id: 's', label: 'S', speak: 'S', speakLang: EN, icon: '☀️', subLabel: 'sun' },
+          { id: 't', label: 'T', speak: 'T', speakLang: EN, icon: '🔝', subLabel: 'top' },
+          { id: 'r', label: 'R', speak: 'R', speakLang: EN, icon: '🟥', subLabel: 'red' },
+          { id: 'z', label: 'Z', speak: 'Z', speakLang: EN, icon: '🦓', subLabel: 'zoo' },
+        ],
+        '点字母，听字母和单词'
+      ),
       quiz('首字母发音', [
         {
           id: 'q1',

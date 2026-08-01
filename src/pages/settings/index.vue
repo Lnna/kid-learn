@@ -37,7 +37,7 @@
       </view>
 
       <view class="about">
-        <text class="about__title">小小衔</text>
+        <text class="about__title">小小花</text>
         <text class="about__text">幼小衔接自学 · 语文 / 数学 / 英语 / 自然 / 科学</text>
         <text class="about__text">版本 1.0.0 · 纯离线可用</text>
         <text class="about__tip">小米等安卓机：设置 → 更多设置 → 无障碍 → 文字转语音输出，安装「Google 文字转语音」或系统中文引擎；点读时请保持网络畅通（安卓会走在线发音兜底）。</text>

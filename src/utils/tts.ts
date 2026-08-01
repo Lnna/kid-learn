@@ -108,7 +108,7 @@ function resolveLang(text: string, options: SpeakOptions): string {
   return /[a-zA-Z]/.test(text) && !/[\u4e00-\u9fff]/.test(text) ? 'en-US' : 'zh-CN'
 }
 
-function speakWeb(text: string, options: SpeakOptions): Promise<boolean> {
+function speakWeb(text: string, options: SpeakOptions, waitEnd = false): Promise<boolean> {
   // #ifdef H5
   return new Promise((resolve) => {
     if (!canSpeak()) {
@@ -145,19 +145,25 @@ function speakWeb(text: string, options: SpeakOptions): Promise<boolean> {
         resolve(ok)
       }
 
-      u.onstart = () => done(true)
-      u.onend = () => done(true)
-      u.onerror = () => done(false)
+      if (waitEnd) {
+        u.onend = () => done(true)
+        u.onerror = () => done(false)
+        // 兜底：防止个别机型永不触发 onend
+        setTimeout(() => done(true), Math.min(12000, 800 + text.length * 220))
+      } else {
+        u.onstart = () => done(true)
+        u.onend = () => done(true)
+        u.onerror = () => done(false)
+        // 小米等机型：speak 后既不 onstart 也不 onerror，超时判失败走兜底
+        setTimeout(() => {
+          if (!settled) {
+            const ok = window.speechSynthesis.speaking || window.speechSynthesis.pending
+            done(!!ok)
+          }
+        }, isAndroid() ? 450 : 700)
+      }
 
       window.speechSynthesis.speak(u)
-
-      // 小米等机型：speak 后既不 onstart 也不 onerror，超时判失败走兜底
-      setTimeout(() => {
-        if (!settled) {
-          const ok = window.speechSynthesis.speaking || window.speechSynthesis.pending
-          done(!!ok)
-        }
-      }, isAndroid() ? 450 : 700)
     } catch {
       resolve(false)
     }
@@ -170,14 +176,14 @@ function speakWeb(text: string, options: SpeakOptions): Promise<boolean> {
 
 /** 有道词典发音：用 Audio 直链播放，避免 fetch CORS；短词汉字在小米上可用 */
 function ttsUrl(text: string, lang: string): string {
-  const q = encodeURIComponent(text.slice(0, 40))
+  const q = encodeURIComponent(text.slice(0, 60))
   if (lang.toLowerCase().startsWith('en')) {
     return `https://dict.youdao.com/dictvoice?audio=${q}&type=2`
   }
   return `https://dict.youdao.com/dictvoice?audio=${q}&le=zh`
 }
 
-async function playUrlAudio(url: string): Promise<boolean> {
+async function playUrlAudio(url: string, waitEnd = false): Promise<boolean> {
   // #ifdef H5
   try {
     if (!audioEl) {
@@ -189,6 +195,30 @@ async function playUrlAudio(url: string): Promise<boolean> {
     audioEl.src = url
     const p = audioEl.play()
     if (p && typeof p.then === 'function') await p
+    if (!waitEnd) return true
+
+    await new Promise<void>((resolve) => {
+      const el = audioEl
+      if (!el) {
+        resolve()
+        return
+      }
+      let done = false
+      const finish = () => {
+        if (done) return
+        done = true
+        el.removeEventListener('ended', finish)
+        el.removeEventListener('error', finish)
+        el.removeEventListener('pause', finish)
+        clearTimeout(timer)
+        resolve()
+      }
+      el.addEventListener('ended', finish)
+      el.addEventListener('error', finish)
+      // 被下一段播报 pause 打断时结束等待，避免卡住
+      el.addEventListener('pause', finish)
+      const timer = setTimeout(finish, 12000)
+    })
     return true
   } catch (e) {
     console.warn('audio tts failed', e)
@@ -200,11 +230,15 @@ async function playUrlAudio(url: string): Promise<boolean> {
   // #endif
 }
 
-async function speakFallback(text: string, options: SpeakOptions): Promise<boolean> {
+async function speakFallback(
+  text: string,
+  options: SpeakOptions,
+  waitEnd = false
+): Promise<boolean> {
   const lang = resolveLang(text, options)
   // 优先直链播放（不依赖 CORS）；再尝试写入 Cache 供下次
   const url = ttsUrl(text, lang)
-  const ok = await playUrlAudio(url)
+  const ok = await playUrlAudio(url, waitEnd)
   if (ok && typeof caches !== 'undefined') {
     caches.open(CACHE_NAME).then(async (cache) => {
       try {
@@ -222,6 +256,17 @@ async function speakFallback(text: string, options: SpeakOptions): Promise<boole
   return ok
 }
 
+async function speakOnce(text: string, options: SpeakOptions, waitEnd: boolean): Promise<boolean> {
+  if (isAndroid()) {
+    if (await speakFallback(text, options, waitEnd)) return true
+    if (await speakWeb(text, options, waitEnd)) return true
+    return false
+  }
+  if (await speakWeb(text, options, waitEnd)) return true
+  if (await speakFallback(text, options, waitEnd)) return true
+  return false
+}
+
 /**
  * 对外播报：优先系统 Web Speech；安卓/小米失败则走有道发音并本地缓存。
  * 必须在用户点击/触摸回调里调用。
@@ -233,23 +278,30 @@ export function speak(text: string, options: SpeakOptions = {}): void {
   const trimmed = text.trim()
   if (!trimmed) return
 
-  // 安卓/小米：系统 Web Speech 经常“假成功但无声”，优先用有道直链更稳
-  // 桌面端优先 Web Speech（零网络）
   void (async () => {
-    if (isAndroid()) {
-      const netOk = await speakFallback(trimmed, options)
-      if (netOk) return
-      const webOk = await speakWeb(trimmed, options)
-      if (webOk) return
-      tipOnce('无法发音：请连网试一次，或安装系统中文语音引擎')
-      return
+    const ok = await speakOnce(trimmed, options, false)
+    if (!ok) {
+      tipOnce(
+        isAndroid()
+          ? '无法发音：请连网试一次，或安装系统中文语音引擎'
+          : '无法发音：请检查系统语音或网络后重试'
+      )
     }
-    const webOk = await speakWeb(trimmed, options)
-    if (webOk) return
-    const netOk = await speakFallback(trimmed, options)
-    if (netOk) return
-    tipOnce('无法发音：请检查系统语音或网络后重试')
   })()
+  // #endif
+}
+
+/** 播完整段再 resolve，适合连续播报（挖宝反馈 → 下一条指令） */
+export function speakAsync(text: string, options: SpeakOptions = {}): Promise<void> {
+  if (!text) return Promise.resolve()
+  // #ifdef H5
+  unlockSpeak()
+  const trimmed = text.trim()
+  if (!trimmed) return Promise.resolve()
+  return speakOnce(trimmed, options, true).then(() => undefined)
+  // #endif
+  // #ifndef H5
+  return Promise.resolve()
   // #endif
 }
 

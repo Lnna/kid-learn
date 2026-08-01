@@ -15,13 +15,22 @@ function defaultProgress(): AppProgress {
       english: emptySubject(),
       nature: emptySubject(),
       science: emptySubject(),
+      gem: emptySubject(),
+      dino: emptySubject(),
     },
     settings: { ttsEnabled: true, sfxEnabled: true },
   }
 }
 
 export function loadProgress(): AppProgress {
-  return getItem<AppProgress>(KEY, defaultProgress())
+  const p = getItem<AppProgress>(KEY, defaultProgress())
+  const def = defaultProgress()
+  // 旧存档补齐新增科目
+  ;(Object.keys(def.subjects) as SubjectId[]).forEach((id) => {
+    if (!p.subjects[id]) p.subjects[id] = emptySubject()
+  })
+  if (!p.settings) p.settings = def.settings
+  return p
 }
 
 export function saveProgress(p: AppProgress): void {

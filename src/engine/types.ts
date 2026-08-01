@@ -1,6 +1,9 @@
 /** 课程数据 Schema */
 
-export type SubjectId = 'chinese' | 'math' | 'english' | 'nature' | 'science'
+export type SubjectId = 'chinese' | 'math' | 'english' | 'nature' | 'science' | 'gem' | 'dino'
+
+/** 兴趣主题（基地里的门） */
+export type ThemeId = 'gem' | 'dino'
 
 export type ActivityType =
   | 'tap-read'
@@ -12,6 +15,8 @@ export type ActivityType =
   | 'sequence'
   | 'mini-lab'
   | 'read-along'
+  | 'grid-dig'
+  | 'rock-lab'
 
 export interface TapReadItem {
   id: string
@@ -149,6 +154,45 @@ export interface ReadAlongActivity extends ActivityBase {
   lines: ReadAlongLine[]
 }
 
+/* ── 主题课程专用活动 ── */
+
+/** 坐标挖掘目标 */
+export interface DigTarget {
+  row: number
+  col: number
+  icon: string
+  label: string
+  speak?: string
+}
+
+export interface GridDigActivity extends ActivityBase {
+  type: 'grid-dig'
+  rows: number
+  cols: number
+  targets: DigTarget[]
+  /** 场景皮肤：矿洞 / 化石坑 */
+  scene: 'mine' | 'fossil'
+  intro: string
+}
+
+/** 岩石实验：硬度划痕 / 条痕色 / 火山冷却 */
+export type RockLabMode = 'scratch' | 'streak' | 'volcano'
+
+export interface RockLabActivity extends ActivityBase {
+  type: 'rock-lab'
+  mode: RockLabMode
+  /** 实验对象名，如「黄铁矿」 */
+  mineral: string
+  /** 外表颜色（streak 模式用） */
+  outerColor?: string
+  /** 条痕颜色（streak 模式用） */
+  streakColor?: string
+  /** 硬度档位 1软 2中 3硬（scratch 模式用） */
+  hardness?: 1 | 2 | 3
+  /** 实验结论 */
+  conclusion: string
+}
+
 export type Activity =
   | TapReadActivity
   | ListenChooseActivity
@@ -159,6 +203,8 @@ export type Activity =
   | SequenceActivity
   | MiniLabActivity
   | ReadAlongActivity
+  | GridDigActivity
+  | RockLabActivity
 
 export interface Level {
   id: string
@@ -166,6 +212,8 @@ export interface Level {
   subtitle?: string
   starsMax?: number
   activities: Activity[]
+  /** 通关解锁的图鉴 id（主题课程用） */
+  rewards?: string[]
 }
 
 export interface Unit {
@@ -205,4 +253,42 @@ export interface AppProgress {
     ttsEnabled: boolean
     sfxEnabled: boolean
   }
+}
+
+/* ── 图鉴收藏 ── */
+
+/** 矿物图鉴 */
+export interface MineralItem {
+  id: string
+  name: string
+  /** 手绘 SVG 用的主色 */
+  color: string
+  /** 辅色/斑纹色 */
+  accent?: string
+  /** 形状：晶体 / 圆石 / 层状 */
+  shape: 'crystal' | 'pebble' | 'layer'
+  hardness: 1 | 2 | 3
+  hardnessLabel: string
+  streakColor: string
+  facts: [string, string, string]
+  origin: string
+  /** 世界地图上的大致坐标（百分比） */
+  mapX: number
+  mapY: number
+}
+
+/** 恐龙图鉴 */
+export interface DinoItem {
+  id: string
+  name: string
+  color: string
+  era: string
+  diet: '植食' | '肉食'
+  length: string
+  facts: [string, string, string]
+}
+
+/** 图鉴存储 */
+export interface CollectionState {
+  unlocked: Record<ThemeId, string[]>
 }

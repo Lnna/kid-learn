@@ -2,10 +2,12 @@ import type {
   Activity,
   BlendActivity,
   DragMatchActivity,
+  GridDigActivity,
   ListenChooseActivity,
   MiniLabActivity,
   QuizActivity,
   ReadAlongActivity,
+  RockLabActivity,
   SequenceActivity,
   TapReadActivity,
   TracingActivity,
@@ -103,8 +105,54 @@ export function readAlong(
   return { id: id('ra'), type: 'read-along', title, instruction, titleText, lines }
 }
 
-export function level(idStr: string, title: string, activities: Activity[], subtitle?: string): Level {
-  return { id: idStr, title, subtitle, starsMax: 3, activities }
+export function gridDig(
+  title: string,
+  scene: GridDigActivity['scene'],
+  targets: GridDigActivity['targets'],
+  intro: string,
+  rows = 6,
+  cols = 6
+): GridDigActivity {
+  return {
+    id: id('gd'),
+    type: 'grid-dig',
+    title,
+    instruction: '按行和列找到宝藏位置',
+    rows,
+    cols,
+    targets,
+    scene,
+    intro,
+  }
+}
+
+export function rockLab(
+  title: string,
+  mode: RockLabActivity['mode'],
+  mineral: string,
+  conclusion: string,
+  extra: Partial<RockLabActivity> = {}
+): RockLabActivity {
+  return {
+    id: id('rl'),
+    type: 'rock-lab',
+    title,
+    instruction: '动手做实验',
+    mode,
+    mineral,
+    conclusion,
+    ...extra,
+  }
+}
+
+export function level(
+  idStr: string,
+  title: string,
+  activities: Activity[],
+  subtitle?: string,
+  rewards?: string[]
+): Level {
+  return { id: idStr, title, subtitle, starsMax: 3, activities, rewards }
 }
 
 export function unit(idStr: string, title: string, levels: Level[], subtitle?: string): Unit {

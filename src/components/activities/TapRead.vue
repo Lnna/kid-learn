@@ -28,9 +28,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import type { TapReadActivity } from '../../engine/types'
-import { speak, unlockSpeak } from '../../utils/tts'
+import { speak, stopSpeak, unlockSpeak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 
@@ -39,14 +39,37 @@ const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>(
 
 const activeId = ref('')
 const explored = ref(new Set<string>())
+let wordTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearWordTimer() {
+  if (wordTimer) {
+    clearTimeout(wordTimer)
+    wordTimer = null
+  }
+}
 
 function onTap(item: TapReadActivity['items'][0]) {
   unlockSpeak()
   activeId.value = item.id
   explored.value = new Set([...explored.value, item.id])
   playSfx('tap')
-  if (props.tts !== false) speak(item.speak || item.label, { lang: item.speakLang })
+  if (props.tts === false) return
+  clearWordTimer()
+  stopSpeak()
+  // 先读字母，间隔 1 秒再读单词
+  const letter = (item.speak || item.label).trim()
+  const word = item.subLabel?.trim()
+  const lang = item.speakLang || (word ? 'en-US' : undefined)
+  speak(letter, { lang })
+  if (word) {
+    wordTimer = setTimeout(() => {
+      wordTimer = null
+      speak(word, { lang })
+    }, 1000)
+  }
 }
+
+onUnmounted(clearWordTimer)
 </script>
 
 <style scoped lang="scss">
@@ -102,8 +125,9 @@ function onTap(item: TapReadActivity['items'][0]) {
   color: var(--color-ink);
 }
 .card__sub {
-  font-size: 24rpx;
-  color: var(--color-muted);
-  margin-top: 6rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--color-english, #4da3ff);
+  margin-top: 8rpx;
 }
 </style>

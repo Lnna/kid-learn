@@ -28,9 +28,11 @@
         :stars="finalStars"
         :color="subject?.color"
         :mascot="(subject?.mascot as any) || 'fox'"
+        :new-unlocks="newUnlockNames"
         @retry="retry"
         @next="goNext"
         @back="goMap"
+        @collection="goCollection"
       />
     </view>
   </view>
@@ -39,8 +41,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { findLevel, getAllLevelIds } from '../../engine/catalog'
+import { findLevel, getAllLevelIds, isTheme } from '../../engine/catalog'
 import { calcStars, recordLevelResult, loadProgress } from '../../engine/progress'
+import { unlockItems } from '../../engine/collection'
+import { MINERAL_MAP } from '../../data/gem/minerals'
+import { DINO_MAP } from '../../data/dino/dinosaurs'
 import { setSfxEnabled } from '../../utils/sfx'
 import { unlockSpeak, stopSpeak } from '../../utils/tts'
 import type { Activity, Level, Subject, SubjectId } from '../../engine/types'
@@ -57,6 +62,7 @@ const finished = ref(false)
 const finalStars = ref(0)
 const startedAt = ref(Date.now())
 const ttsEnabled = ref(true)
+const newUnlockNames = ref<string[]>([])
 
 const currentAct = computed<Activity | null>(() => level.value?.activities[actIndex.value] || null)
 const totalActs = computed(() => level.value?.activities.length || 1)
@@ -79,7 +85,24 @@ function finish() {
   finalStars.value = calcStars(correct, total)
   const secs = Math.round((Date.now() - startedAt.value) / 1000)
   recordLevelResult(subjectId.value, levelId.value, finalStars.value, secs)
+  collectRewards()
   finished.value = true
+}
+
+function collectRewards() {
+  if (!isTheme(subjectId.value)) return
+  const rewards = level.value?.rewards || []
+  const fresh = unlockItems(subjectId.value, rewards)
+  newUnlockNames.value = fresh
+    .map((id) => (subjectId.value === 'gem' ? MINERAL_MAP[id]?.name : DINO_MAP[id]?.name))
+    .filter((n): n is string => !!n)
+}
+
+function goCollection() {
+  stopSpeak()
+  if (isTheme(subjectId.value)) {
+    uni.navigateTo({ url: `/pages/theme/collection?theme=${subjectId.value}` })
+  }
 }
 
 function retry() {
@@ -87,6 +110,7 @@ function retry() {
   actIndex.value = 0
   scores.value = []
   finished.value = false
+  newUnlockNames.value = []
   startedAt.value = Date.now()
 }
 
@@ -102,6 +126,7 @@ function loadLevel(nextLevelId: string) {
   actIndex.value = 0
   scores.value = []
   finished.value = false
+  newUnlockNames.value = []
   startedAt.value = Date.now()
   // #ifdef H5
   try {
