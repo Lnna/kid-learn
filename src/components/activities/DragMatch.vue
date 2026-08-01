@@ -11,7 +11,9 @@
           :class="{ selected: selectedLeft === p.id, matched: matched.has(p.id) }"
           @click="pickLeft(p.id)"
         >
-          <text v-if="p.leftIcon" class="chip__icon">{{ p.leftIcon }}</text>
+          <view v-if="p.leftIcon" class="chip__icon">
+            <ActivityIcon :name="p.leftIcon" :size="48" />
+          </view>
           <text class="chip__text">{{ p.left }}</text>
         </view>
       </view>
@@ -23,7 +25,9 @@
           :class="{ matched: matched.has(p.id) }"
           @click="pickRight(p.id)"
         >
-          <text v-if="p.rightIcon" class="chip__icon">{{ p.rightIcon }}</text>
+          <view v-if="p.rightIcon" class="chip__icon">
+            <ActivityIcon :name="p.rightIcon" :size="48" />
+          </view>
           <text class="chip__text">{{ p.right }}</text>
         </view>
       </view>
@@ -36,6 +40,7 @@
 import { ref, computed, watch } from 'vue'
 import type { DragMatchActivity } from '../../engine/types'
 import { playSfx } from '../../utils/sfx'
+import ActivityIcon from '../ui/ActivityIcon.vue'
 
 const props = defineProps<{ activity: DragMatchActivity; color?: string }>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()

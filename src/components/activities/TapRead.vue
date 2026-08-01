@@ -11,7 +11,9 @@
         :style="{ borderColor: item.color || '#f5ebd8' }"
         @click="onTap(item)"
       >
-        <text v-if="item.icon" class="card__icon">{{ item.icon }}</text>
+        <view v-if="item.icon" class="card__icon">
+          <ActivityIcon :name="item.icon" :size="88" />
+        </view>
         <text class="card__label">{{ item.label }}</text>
         <text v-if="item.subLabel" class="card__sub">{{ item.subLabel }}</text>
       </view>
@@ -32,6 +34,7 @@ import type { TapReadActivity } from '../../engine/types'
 import { speak, stopSpeak, unlockSpeak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
+import ActivityIcon from '../ui/ActivityIcon.vue'
 
 const props = defineProps<{ activity: TapReadActivity; color?: string; tts?: boolean }>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()

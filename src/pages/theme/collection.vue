@@ -71,7 +71,8 @@
             class="album-card__badge"
             :style="{ background: albumSoftBg(it.color) }"
           >
-            <text class="album-card__emoji">{{ albumEmoji(it) }}</text>
+            <VehicleIcon v-if="isVehicleTheme && isVehicleItem(it)" :item="it" :size="80" />
+            <text v-else class="album-card__emoji">{{ albumEmoji(it) }}</text>
           </view>
           <view v-else class="mineral-card__silhouette">?</view>
           <text class="mineral-card__name">{{ unlockedSet.has(it.id) ? it.name : lockedName }}</text>
@@ -161,7 +162,8 @@
         <view class="modal__card" @click.stop>
           <view class="modal__head">
             <view class="album-badge" :style="{ background: albumSoftBg(activeAlbum.color) }">
-              <text class="album-badge__emoji">{{ albumEmoji(activeAlbum) }}</text>
+              <VehicleIcon v-if="activeVehicle" :item="activeVehicle" :size="96" />
+              <text v-else class="album-badge__emoji">{{ albumEmoji(activeAlbum) }}</text>
             </view>
             <view>
               <text class="modal__name">{{ activeAlbum.name }}</text>
@@ -208,6 +210,7 @@ import { playSfx } from '../../utils/sfx'
 import { speak } from '../../utils/tts'
 import MineralIcon from '../../components/theme/MineralIcon.vue'
 import DinoIcon from '../../components/theme/DinoIcon.vue'
+import VehicleIcon from '../../components/theme/VehicleIcon.vue'
 import KButton from '../../components/ui/KButton.vue'
 
 type AlbumItem = TownItem | PrincessItem | VehicleItem
@@ -245,6 +248,7 @@ const LOCKED_NAMES: Record<ThemeId, string> = {
 
 const isGem = computed(() => theme.value === 'gem')
 const isDino = computed(() => theme.value === 'dino')
+const isVehicleTheme = computed(() => theme.value === 'vehicle')
 const themeColor = computed(() => getSubject(theme.value).color)
 const pageTitle = computed(() => PAGE_TITLES[theme.value])
 const lockedName = computed(() => LOCKED_NAMES[theme.value])
@@ -311,6 +315,10 @@ function openDino(d: DinoItem) {
 
 function albumEmoji(it: AlbumItem): string {
   return 'icon' in it && it.icon ? it.icon : '👑'
+}
+
+function isVehicleItem(it: AlbumItem): it is VehicleItem {
+  return 'stat' in it
 }
 
 function albumSoftBg(color: string): string {

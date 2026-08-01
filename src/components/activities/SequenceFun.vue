@@ -19,7 +19,7 @@
         :class="{ used: picked.includes(opt.id) }"
         @click="pick(opt.id)"
       >
-        <text v-if="opt.icon">{{ opt.icon }} </text>
+        <ActivityIcon v-if="opt.icon" :name="opt.icon" :size="48" />
         <text>{{ opt.label }}</text>
       </view>
     </view>
@@ -40,6 +40,7 @@ import type { SequenceActivity } from '../../engine/types'
 import { speak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
+import ActivityIcon from '../ui/ActivityIcon.vue'
 
 const props = defineProps<{ activity: SequenceActivity; color?: string; tts?: boolean }>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()
@@ -157,10 +158,13 @@ onMounted(say)
 .chip {
   background: #fff;
   border-radius: 999rpx;
-  padding: 20rpx 28rpx;
+  padding: 16rpx 24rpx;
   border: 4rpx solid #f5ebd8;
   font-weight: 700;
   font-size: 30rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
 }
 .chip.used {
   opacity: 0.3;

@@ -16,7 +16,9 @@
         }"
         @click="choose(opt.id)"
       >
-        <text v-if="opt.icon" class="opt__icon">{{ opt.icon }}</text>
+        <view v-if="opt.icon" class="opt__icon">
+          <ActivityIcon :name="opt.icon" :size="64" />
+        </view>
         <text class="opt__label">{{ opt.label }}</text>
       </view>
     </view>
@@ -29,6 +31,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import type { QuizActivity } from '../../engine/types'
 import { speak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
+import ActivityIcon from '../ui/ActivityIcon.vue'
 
 const props = defineProps<{ activity: QuizActivity; color?: string; tts?: boolean }>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()
