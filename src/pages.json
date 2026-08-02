@@ -48,6 +48,13 @@
         "navigationStyle": "custom",
         "navigationBarTitleText": "图鉴"
       }
+    },
+    {
+      "path": "pages/monster/arena",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "打怪兽"
+      }
     }
   ],
   "globalStyle": {

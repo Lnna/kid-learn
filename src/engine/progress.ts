@@ -15,6 +15,7 @@ function defaultProgress(): AppProgress {
       english: emptySubject(),
       nature: emptySubject(),
       science: emptySubject(),
+      pe: emptySubject(),
       gem: emptySubject(),
       dino: emptySubject(),
       town: emptySubject(),

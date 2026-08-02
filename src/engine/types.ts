@@ -6,6 +6,7 @@ export type SubjectId =
   | 'english'
   | 'nature'
   | 'science'
+  | 'pe'
   | 'gem'
   | 'dino'
   | 'town'
@@ -27,6 +28,7 @@ export type ActivityType =
   | 'read-along'
   | 'grid-dig'
   | 'rock-lab'
+  | 'move-play'
 
 export interface TapReadItem {
   id: string
@@ -204,6 +206,23 @@ export interface RockLabActivity extends ActivityBase {
   conclusion: string
 }
 
+/** 体育课动作：倒计时或次数引导，孩子自评完成 */
+export interface MovePlayItem {
+  id: string
+  name: string
+  speak: string
+  emoji: string
+  durationSec?: number
+  reps?: number
+  tip: string
+}
+
+export interface MovePlayActivity extends ActivityBase {
+  type: 'move-play'
+  moves: MovePlayItem[]
+  encourage?: string
+}
+
 export type Activity =
   | TapReadActivity
   | ListenChooseActivity
@@ -216,6 +235,7 @@ export type Activity =
   | ReadAlongActivity
   | GridDigActivity
   | RockLabActivity
+  | MovePlayActivity
 
 export interface Level {
   id: string

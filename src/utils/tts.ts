@@ -453,34 +453,14 @@ function speakWeb(text: string, options: SpeakOptions, waitEnd = false, epoch = 
   // #endif
 }
 
-/** 线上 CloudBase 代理；本地/局域网走同源 /api/tts（Vite 中间件拉百度） */
-const CLOUD_TTS_BASE =
-  'https://wechat-game-dev-d8f0dto7d9f6f9bd.service.tcloudbase.com/kidlearnTts'
-
-function isLanOrLocalHost(): boolean {
-  // #ifdef H5
-  if (typeof location === 'undefined') return false
-  const host = location.hostname
-  return (
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    /^192\.168\./.test(host) ||
-    /^10\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
-  )
-  // #endif
-  // #ifndef H5
-  return false
-  // #endif
-}
-
-/** 自建代理地址：服务器拉百度整句 MP3（勿直链百度，微信会拦） */
+/**
+ * 微信同源 TTS：本地 = Vite 中间件 /api/tts；线上 = Nginx 代理 /api/tts。
+ * 路径统一，勿再走 CloudBase / 百度直链（微信会拦百度域）。
+ */
 function proxyTtsUrl(text: string, lang: string): string {
   const q = encodeURIComponent(text.slice(0, 60))
   const lan = lang.toLowerCase().startsWith('en') ? 'en' : 'zh'
-  const qs = `text=${q}&lang=${lan}`
-  if (isLanOrLocalHost()) return `/api/tts?${qs}`
-  return `${CLOUD_TTS_BASE}?${qs}`
+  return `/api/tts?text=${q}&lang=${lan}`
 }
 
 /** 百度直链：仅非微信备用 */

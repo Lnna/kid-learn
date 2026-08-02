@@ -19,6 +19,8 @@
           :activity="currentAct"
           :color="subject?.color"
           :tts="ttsEnabled"
+          :subject-id="subjectId"
+          :level-id="levelId"
           @done="onActDone"
         />
       </view>
@@ -39,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, provide } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { findLevel, getAllLevelIds, isTheme } from '../../engine/catalog'
 import { calcStars, recordLevelResult, loadProgress } from '../../engine/progress'
@@ -71,6 +73,14 @@ const currentAct = computed<Activity | null>(() => level.value?.activities[actIn
 const totalActs = computed(() => level.value?.activities.length || 1)
 const progressPct = computed(() =>
   finished.value ? 100 : Math.round((actIndex.value / totalActs.value) * 100)
+)
+
+provide(
+  'lessonContext',
+  computed(() => ({
+    subjectId: subjectId.value,
+    levelId: levelId.value,
+  }))
 )
 
 function onActDone(score: { correct: number; total: number }) {

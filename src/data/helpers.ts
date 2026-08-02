@@ -5,6 +5,7 @@ import type {
   GridDigActivity,
   ListenChooseActivity,
   MiniLabActivity,
+  MovePlayActivity,
   QuizActivity,
   ReadAlongActivity,
   RockLabActivity,
@@ -142,6 +143,21 @@ export function rockLab(
     mineral,
     conclusion,
     ...extra,
+  }
+}
+
+export function movePlay(
+  title: string,
+  moves: MovePlayActivity['moves'],
+  extra: Partial<Pick<MovePlayActivity, 'instruction' | 'encourage'>> = {}
+): MovePlayActivity {
+  return {
+    id: id('mp'),
+    type: 'move-play',
+    title,
+    instruction: extra.instruction || '跟着做动作，做完点一下',
+    moves,
+    encourage: extra.encourage,
   }
 }
 

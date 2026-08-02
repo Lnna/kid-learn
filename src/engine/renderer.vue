@@ -12,6 +12,8 @@
       :activity="activity"
       :color="color"
       :tts="tts"
+      :subject-id="subjectId"
+      :level-id="levelId"
       @done="onDone"
     />
     <DragMatch
@@ -39,6 +41,8 @@
       :activity="activity"
       :color="color"
       :tts="tts"
+      :subject-id="subjectId"
+      :level-id="levelId"
       @done="onDone"
     />
     <SequenceFun
@@ -46,6 +50,8 @@
       :activity="activity"
       :color="color"
       :tts="tts"
+      :subject-id="subjectId"
+      :level-id="levelId"
       @done="onDone"
     />
     <MiniLab
@@ -76,11 +82,18 @@
       :tts="tts"
       @done="onDone"
     />
+    <MovePlay
+      v-else-if="activity.type === 'move-play'"
+      :activity="activity"
+      :color="color"
+      :tts="tts"
+      @done="onDone"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
-import type { Activity } from './types'
+import type { Activity, SubjectId } from './types'
 import TapRead from '../components/activities/TapRead.vue'
 import ListenChoose from '../components/activities/ListenChoose.vue'
 import DragMatch from '../components/activities/DragMatch.vue'
@@ -92,8 +105,15 @@ import MiniLab from '../components/activities/MiniLab.vue'
 import ReadAlong from '../components/activities/ReadAlong.vue'
 import GridDig from '../components/activities/GridDig.vue'
 import RockLab from '../components/activities/RockLab.vue'
+import MovePlay from '../components/activities/MovePlay.vue'
 
-defineProps<{ activity: Activity; color?: string; tts?: boolean }>()
+defineProps<{
+  activity: Activity
+  color?: string
+  tts?: boolean
+  subjectId?: SubjectId
+  levelId?: string
+}>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()
 
 function onDone(score: { correct: number; total: number }) {

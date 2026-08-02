@@ -31,18 +31,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import type { ListenChooseActivity } from '../../engine/types'
+import { ref, onMounted, inject, type ComputedRef } from 'vue'
+import type { ListenChooseActivity, SubjectId } from '../../engine/types'
+import { addMistake } from '../../engine/mistakes'
 import { speak, unlockSpeak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import ActivityIcon from '../ui/ActivityIcon.vue'
 import ChoiceOption from '../ui/ChoiceOption.vue'
 
-const props = defineProps<{ activity: ListenChooseActivity; color?: string; tts?: boolean }>()
+const props = defineProps<{
+  activity: ListenChooseActivity
+  color?: string
+  tts?: boolean
+  subjectId?: SubjectId
+  levelId?: string
+}>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()
+
+const lessonContext = inject<ComputedRef<{ subjectId: SubjectId; levelId: string }> | undefined>(
+  'lessonContext',
+  undefined
+)
 
 const selected = ref('')
 const revealed = ref(false)
+
+function captureWrong() {
+  const { subjectId, levelId } = {
+    subjectId: props.subjectId || lessonContext?.value?.subjectId,
+    levelId: props.levelId || lessonContext?.value?.levelId || '',
+  }
+  if (!subjectId || !levelId) return
+  addMistake({
+    subjectId,
+    levelId,
+    activityType: 'listen-choose',
+    prompt: props.activity.promptLabel || props.activity.title || '听一听选一选',
+    speak: props.activity.promptSpeak,
+    options: props.activity.options,
+    answerId: props.activity.answerId,
+  })
+}
 
 function playPrompt() {
   unlockSpeak()
@@ -57,6 +86,7 @@ function choose(id: string) {
   selected.value = id
   revealed.value = true
   const ok = id === props.activity.answerId
+  if (!ok) captureWrong()
   playSfx(ok ? 'correct' : 'wrong')
   setTimeout(() => {
     emit('done', { correct: ok ? 1 : 0, total: 1 })

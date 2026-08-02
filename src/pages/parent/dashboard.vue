@@ -20,6 +20,17 @@
         </view>
       </view>
 
+      <!-- monster-parent-stat：待打怪兽（与体育课统计分块，避免与 sibling 冲突） -->
+      <view class="monster-line">
+        <text class="monster-line__label">待打怪兽数</text>
+        <text class="monster-line__num">{{ mistakeCount }}</text>
+      </view>
+
+      <view class="pe-line">
+        <text class="pe-line__label">🏃 体育课星星</text>
+        <text class="pe-line__num">★ {{ peStars }}</text>
+      </view>
+
       <view v-for="s in subjects" :key="s.id" class="card" :style="{ '--c': s.color }">
         <view class="card__head">
           <Mascot :name="s.mascot as any" :size="72" />
@@ -41,12 +52,16 @@ import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { SUBJECTS, getAllLevelIds } from '../../engine/catalog'
 import { loadProgress, getTotalStars } from '../../engine/progress'
+import { countMistakes } from '../../engine/mistakes'
 import type { AppProgress, Subject, SubjectId } from '../../engine/types'
 import Mascot from '../../components/ui/Mascot.vue'
 
 const subjects = SUBJECTS
 const progress = ref<AppProgress | null>(null)
 const totalStars = ref(0)
+const mistakeCount = ref(0)
+
+const peStars = computed(() => progress.value?.subjects.pe?.totalStars || 0)
 
 const completedLevels = computed(() => {
   if (!progress.value) return 0
@@ -90,6 +105,7 @@ function goBack() {
 onShow(() => {
   progress.value = loadProgress()
   totalStars.value = getTotalStars()
+  mistakeCount.value = countMistakes()
 })
 </script>
 
@@ -141,6 +157,48 @@ onShow(() => {
 .summary__label {
   font-size: 22rpx;
   color: var(--color-muted);
+}
+.monster-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: var(--radius-md);
+  padding: 22rpx 28rpx;
+  margin-bottom: 28rpx;
+  box-shadow: var(--shadow-soft);
+  border: 4rpx solid color-mix(in srgb, var(--color-error) 25%, white);
+}
+.monster-line__label {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.monster-line__num {
+  font-size: 36rpx;
+  font-weight: 900;
+  color: var(--color-error);
+}
+.pe-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: var(--radius-md);
+  padding: 22rpx 28rpx;
+  margin-bottom: 28rpx;
+  box-shadow: var(--shadow-soft);
+  border: 4rpx solid color-mix(in srgb, var(--color-pe, #5ec8a0) 35%, white);
+}
+.pe-line__label {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.pe-line__num {
+  font-size: 36rpx;
+  font-weight: 900;
+  color: var(--color-pe, #5ec8a0);
 }
 .card {
   background: #fff;

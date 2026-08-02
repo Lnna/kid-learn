@@ -44,6 +44,16 @@
         <text class="theme-entry__arrow">→</text>
       </view>
 
+      <view class="monster-entry anim-bounce" @click="goMonster">
+        <view class="monster-entry__icon">👾</view>
+        <view class="monster-entry__info">
+          <text class="monster-entry__name">打怪兽</text>
+          <text class="monster-entry__desc">错题变小怪，答对就打败它</text>
+        </view>
+        <view v-if="mistakeCount > 0" class="monster-entry__badge">{{ badgeText }}</view>
+        <text class="monster-entry__arrow">→</text>
+      </view>
+
       <view class="footer-nav">
         <KButton label="家长中心" variant="soft" color="#9B7BFF" @click="goParent" />
         <KButton label="设置" variant="ghost" @click="goSettings" />
@@ -57,6 +67,7 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { SUBJECTS } from '../../engine/catalog'
 import { getTotalStars, loadProgress } from '../../engine/progress'
+import { countMistakes } from '../../engine/mistakes'
 import type { SubjectId } from '../../engine/types'
 import { unlockSpeak } from '../../utils/tts'
 import Mascot from '../../components/ui/Mascot.vue'
@@ -65,6 +76,8 @@ import KButton from '../../components/ui/KButton.vue'
 const subjects = SUBJECTS
 const totalStars = ref(0)
 const progressStars = ref<Record<string, number>>({})
+const mistakeCount = ref(0)
+const badgeText = ref('0')
 
 type MascotKind = 'panda' | 'fox' | 'owl' | 'rabbit' | 'bear'
 
@@ -81,6 +94,8 @@ function refresh() {
     map[id] = p.subjects[id].totalStars
   })
   progressStars.value = map
+  mistakeCount.value = countMistakes()
+  badgeText.value = mistakeCount.value > 99 ? '99+' : String(mistakeCount.value)
 }
 
 function starOf(id: string) {
@@ -95,6 +110,11 @@ function goSubject(id: SubjectId) {
 function goThemeBase() {
   unlockSpeak()
   uni.navigateTo({ url: '/pages/theme/base' })
+}
+
+function goMonster() {
+  unlockSpeak()
+  uni.navigateTo({ url: '/pages/monster/arena' })
 }
 
 function goParent() {
@@ -263,6 +283,64 @@ onShow(refresh)
 .theme-entry__arrow {
   font-size: 48rpx;
   color: #fff;
+  font-weight: 800;
+}
+.monster-entry {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 20rpx;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 28rpx;
+  box-shadow: var(--shadow-soft);
+  border: 4rpx solid color-mix(in srgb, var(--color-error) 30%, white);
+  position: relative;
+}
+.monster-entry:active {
+  transform: scale(0.98);
+}
+.monster-entry__icon {
+  font-size: 56rpx;
+  line-height: 1;
+  filter: drop-shadow(0 4rpx 6rpx rgba(0, 0, 0, 0.12));
+}
+.monster-entry__info {
+  flex: 1;
+  min-width: 0;
+}
+.monster-entry__name {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 900;
+  color: var(--color-error);
+}
+.monster-entry__desc {
+  display: block;
+  font-size: 24rpx;
+  color: var(--color-muted);
+  margin-top: 4rpx;
+}
+.monster-entry__badge {
+  position: absolute;
+  top: 12rpx;
+  right: 64rpx;
+  min-width: 40rpx;
+  height: 40rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background: var(--color-error);
+  color: #fff;
+  font-size: 22rpx;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 0 color-mix(in srgb, var(--color-error) 70%, #2c2416);
+}
+.monster-entry__arrow {
+  font-size: 48rpx;
+  color: var(--color-error);
   font-weight: 800;
 }
 .footer-nav {

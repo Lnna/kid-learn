@@ -4,13 +4,14 @@ import { math } from '../data/math'
 import { english } from '../data/english'
 import { nature } from '../data/nature'
 import { science } from '../data/science'
+import { pe } from '../data/pe'
 import { gem } from '../data/gem'
 import { dino } from '../data/dino'
 import { town } from '../data/town'
 import { princess } from '../data/princess'
 import { vehicle } from '../data/vehicle'
 
-export const SUBJECTS: Subject[] = [chinese, math, english, nature, science]
+export const SUBJECTS: Subject[] = [chinese, math, english, nature, science, pe]
 
 export const THEMES: Subject[] = [gem, dino, town, princess, vehicle]
 
@@ -22,6 +23,7 @@ export const SUBJECT_MAP: Record<SubjectId, Subject> = {
   english,
   nature,
   science,
+  pe,
   gem,
   dino,
   town,

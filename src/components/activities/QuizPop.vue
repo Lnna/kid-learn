@@ -41,16 +41,51 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import type { QuizActivity } from '../../engine/types'
+import { ref, computed, watch, onMounted, onBeforeUnmount, inject, type ComputedRef } from 'vue'
+import type { QuizActivity, SubjectId } from '../../engine/types'
+import { addMistake } from '../../engine/mistakes'
 import { speak, stopSpeak, unlockSpeak } from '../../utils/tts'
 import { toSpeakText } from '../../utils/speakText'
 import { playSfx } from '../../utils/sfx'
 import ActivityIcon from '../ui/ActivityIcon.vue'
 import ChoiceOption from '../ui/ChoiceOption.vue'
 
-const props = defineProps<{ activity: QuizActivity; color?: string; tts?: boolean }>()
+const props = defineProps<{
+  activity: QuizActivity
+  color?: string
+  tts?: boolean
+  subjectId?: SubjectId
+  levelId?: string
+}>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()
+
+const lessonContext = inject<ComputedRef<{ subjectId: SubjectId; levelId: string }> | undefined>(
+  'lessonContext',
+  undefined
+)
+
+function resolveLessonIds() {
+  return {
+    subjectId: props.subjectId || lessonContext?.value?.subjectId,
+    levelId: props.levelId || lessonContext?.value?.levelId || '',
+  }
+}
+
+function captureWrong() {
+  const item = current.value
+  if (!item) return
+  const { subjectId, levelId } = resolveLessonIds()
+  if (!subjectId || !levelId) return
+  addMistake({
+    subjectId,
+    levelId,
+    activityType: 'quiz',
+    prompt: item.question,
+    speak: item.speak || item.question,
+    options: item.options,
+    answerId: item.answerId,
+  })
+}
 
 const idx = ref(0)
 const picked = ref('')
@@ -119,6 +154,7 @@ function choose(id: string) {
   revealed.value = true
   const ok = id === current.value.answerId
   if (ok) correctCount.value++
+  else captureWrong()
   playSfx(ok ? 'correct' : 'wrong')
   setTimeout(() => {
     if (idx.value < props.activity.items.length - 1) {

@@ -40,16 +40,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import type { SequenceActivity } from '../../engine/types'
+import { ref, computed, watch, onMounted, inject, type ComputedRef } from 'vue'
+import type { SequenceActivity, SubjectId } from '../../engine/types'
+import { addMistake } from '../../engine/mistakes'
 import { speak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 import ActivityIcon from '../ui/ActivityIcon.vue'
 import ChoiceOption from '../ui/ChoiceOption.vue'
 
-const props = defineProps<{ activity: SequenceActivity; color?: string; tts?: boolean }>()
+const props = defineProps<{
+  activity: SequenceActivity
+  color?: string
+  tts?: boolean
+  subjectId?: SubjectId
+  levelId?: string
+}>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()
+
+const lessonContext = inject<ComputedRef<{ subjectId: SubjectId; levelId: string }> | undefined>(
+  'lessonContext',
+  undefined
+)
+
+function captureWrong() {
+  const item = current.value
+  if (!item) return
+  const subjectId = props.subjectId || lessonContext?.value?.subjectId
+  const levelId = props.levelId || lessonContext?.value?.levelId || ''
+  if (!subjectId || !levelId) return
+  addMistake({
+    subjectId,
+    levelId,
+    activityType: 'sequence',
+    prompt: item.prompt,
+    speak: item.speak,
+    options: item.items,
+    answerOrder: item.answerOrder,
+    answerId: item.answerOrder.join('|'),
+  })
+}
 
 const idx = ref(0)
 const picked = ref<string[]>([])
@@ -84,6 +114,7 @@ function unpick(i: number) {
 function check() {
   const ok = picked.value.every((id, i) => id === current.value.answerOrder[i])
   if (ok) correctCount.value++
+  else captureWrong()
   playSfx(ok ? 'correct' : 'wrong')
   setTimeout(() => {
     if (idx.value < props.activity.items.length - 1) {
