@@ -86,29 +86,30 @@ function whenWeixinReady(): Promise<WeixinBridge | null> {
 }
 
 /**
- * 微信要求：真正 play 前先 invoke getNetworkType，才算「用户授权音频」。
- * Google 浏览器无此限制，故同机 Chrome 有声、微信无声。
+ * 微信：必须在 invoke 回调里执行 play。
+ * 旧写法「等回调结束再 play」在手机微信上会导致全部 Audio 失败（含两字短词）。
  */
 async function withWeChatAudioGate<T>(fn: () => Promise<T>): Promise<T> {
   // #ifdef H5
   if (!isWeChat()) return fn()
   const bridge = await whenWeixinReady()
   if (!bridge) return fn()
-  await new Promise<void>((resolve) => {
+  return new Promise<T>((resolve, reject) => {
     let settled = false
-    const end = () => {
+    const run = () => {
       if (settled) return
       settled = true
-      resolve()
+      Promise.resolve()
+        .then(() => fn())
+        .then(resolve, reject)
     }
     try {
-      bridge.invoke('getNetworkType', {}, end)
+      bridge.invoke('getNetworkType', {}, run)
     } catch {
-      end()
+      run()
     }
-    setTimeout(end, 700)
+    setTimeout(run, 800)
   })
-  return fn()
   // #endif
   // #ifndef H5
   return fn()
@@ -286,22 +287,12 @@ function hasChineseVoice(): boolean | null {
  * 失败提示：微信优先引导「用浏览器打开」；
  * 其它安卓才提示联网；桌面/iOS 区分偶发失败。
  */
-function failureTip(lang: string): string {
-  if (isWeChat()) {
-    return '微信内发音受限，请点右上角···用浏览器打开'
+function failureTip(_lang: string): string {
+  if (isWeChat() && isAndroid()) {
+    return '刚才没播出来，请再点一次；仍不行可改用浏览器打开'
   }
   if (isAndroid()) {
-    return '发音失败：请确认手机已联网，再点一次试试'
-  }
-  const zh = lang.toLowerCase().startsWith('zh')
-  if (!canSpeak()) {
-    return zh ? '无法发音：请联网后重试' : '无法发音：当前环境不支持语音播报'
-  }
-  if (zh) {
-    if (everSpokeOk || hasChineseVoice() !== false) {
-      return '刚才没播出来，点再听一遍试试'
-    }
-    return '无法发音：请检查系统中文语音，或联网后重试'
+    return '刚才没播出来，请确认已联网后重试'
   }
   return '刚才没播出来，点再听一遍试试'
 }
@@ -462,14 +453,281 @@ function speakWeb(text: string, options: SpeakOptions, waitEnd = false, epoch = 
   // #endif
 }
 
-/**
- * 百度翻译 TTS：任意中英文本均可朗读（实测有道 dictvoice 只是词典发音库，
- * 非词条句子一律 500，不能当兜底用）；Audio 直链播放，无需 CORS。
- */
-function ttsUrl(text: string, lang: string): string {
+/** 线上 CloudBase 代理；本地/局域网走同源 /api/tts（Vite 中间件拉百度） */
+const CLOUD_TTS_BASE =
+  'https://wechat-game-dev-d8f0dto7d9f6f9bd.service.tcloudbase.com/kidlearnTts'
+
+function isLanOrLocalHost(): boolean {
+  // #ifdef H5
+  if (typeof location === 'undefined') return false
+  const host = location.hostname
+  return (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    /^192\.168\./.test(host) ||
+    /^10\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+  )
+  // #endif
+  // #ifndef H5
+  return false
+  // #endif
+}
+
+/** 自建代理地址：服务器拉百度整句 MP3（勿直链百度，微信会拦） */
+function proxyTtsUrl(text: string, lang: string): string {
+  const q = encodeURIComponent(text.slice(0, 60))
+  const lan = lang.toLowerCase().startsWith('en') ? 'en' : 'zh'
+  const qs = `text=${q}&lang=${lan}`
+  if (isLanOrLocalHost()) return `/api/tts?${qs}`
+  return `${CLOUD_TTS_BASE}?${qs}`
+}
+
+/** 百度直链：仅非微信备用 */
+function baiduTtsUrl(text: string, lang: string): string {
   const q = encodeURIComponent(text.slice(0, 60))
   const lan = lang.toLowerCase().startsWith('en') ? 'en' : 'zh'
   return `https://fanyi.baidu.com/gettts?lan=${lan}&text=${q}&spd=3&source=web`
+}
+
+/**
+ * 从自建代理下载 MP3 → Cache API 本地缓存 → 返回 blob: URL。
+ * 再次播放同一句直接读缓存，不打百度。
+ */
+async function loadProxyTtsObjectUrl(text: string, lang: string): Promise<string | null> {
+  // #ifdef H5
+  const url = proxyTtsUrl(text, lang)
+  try {
+    let body: ArrayBuffer | null = null
+    if (typeof caches !== 'undefined') {
+      const cache = await caches.open(CACHE_NAME)
+      const hit = await cache.match(url)
+      if (hit) {
+        body = await hit.arrayBuffer()
+      } else {
+        const res = await fetch(url, { credentials: 'omit' })
+        if (!res.ok) return null
+        body = await res.arrayBuffer()
+        if (!body || body.byteLength < 200) return null
+        // 拒绝 JSON 错误体
+        const head = String.fromCharCode(...new Uint8Array(body.slice(0, 1)))
+        if (head === '{' || head === '[') return null
+        await cache.put(
+          url,
+          new Response(body.slice(0), {
+            status: 200,
+            headers: {
+              'Content-Type': 'audio/mpeg',
+              'Cache-Control': 'public, max-age=2592000',
+            },
+          })
+        )
+      }
+    } else {
+      const res = await fetch(url, { credentials: 'omit' })
+      if (!res.ok) return null
+      body = await res.arrayBuffer()
+    }
+    if (!body || body.byteLength < 200) return null
+    return URL.createObjectURL(new Blob([body], { type: 'audio/mpeg' }))
+  } catch (e) {
+    console.warn('[tts] proxy download failed', e)
+    return null
+  }
+  // #endif
+  // #ifndef H5
+  return null
+  // #endif
+}
+
+/** 有道词条发音（非整句 TTS；未收录词条返回 500） */
+function youdaoUrl(text: string, lang: string): string {
+  const q = encodeURIComponent(text.slice(0, 40))
+  if (lang.toLowerCase().startsWith('en')) {
+    return `https://dict.youdao.com/dictvoice?audio=${q}&type=2`
+  }
+  return `https://dict.youdao.com/dictvoice?audio=${q}&le=zh`
+}
+
+/** 有道词条是否收录（会话缓存，避免重复空探测） */
+const youdaoHitCache = new Map<string, boolean>()
+
+/** 仅加载探测，不 play，避免把失败探测播进句子里造成顿挫 */
+function probeYoudao(piece: string, lang: string): Promise<boolean> {
+  const key = `${lang}|${piece}`
+  const cached = youdaoHitCache.get(key)
+  if (cached !== undefined) return Promise.resolve(cached)
+  return new Promise((resolve) => {
+    const el = new Audio()
+    el.preload = 'auto'
+    let done = false
+    const finish = (ok: boolean) => {
+      if (done) return
+      done = true
+      youdaoHitCache.set(key, ok)
+      try {
+        el.removeAttribute('src')
+        el.load()
+      } catch {
+        /* ignore */
+      }
+      resolve(ok)
+    }
+    el.addEventListener('error', () => finish(false), { once: true })
+    const onReady = () => {
+      if (Number.isFinite(el.duration) && el.duration > 0.05) finish(true)
+    }
+    el.addEventListener('loadeddata', onReady)
+    el.addEventListener('canplaythrough', onReady, { once: true })
+    setTimeout(() => finish(Number.isFinite(el.duration) && el.duration > 0.05), 900)
+    el.src = youdaoUrl(piece, lang)
+  })
+}
+
+async function planYoudaoPieces(text: string, lang: string, epoch: number): Promise<string[] | null> {
+  const parts = text.split(/([，。！？；、,.!?;:\s]+)/).filter((s) => s.length > 0)
+  const pieces: string[] = []
+  for (const part of parts) {
+    if (epoch && epoch !== speakEpoch) return pieces
+    if (/^[，。！？；、,.!?;:\s]+$/.test(part)) {
+      pieces.push('') // 空串 = 极短气口
+      continue
+    }
+    if (/[\u4e00-\u9fff]/.test(part)) {
+      const zh = part.replace(/\s+/g, '')
+      let i = 0
+      while (i < zh.length) {
+        if (epoch && epoch !== speakEpoch) return pieces
+        let hit: string | null = null
+        const remain = zh.length - i
+        for (const len of [2, 3, 1, 4, 5].filter((n) => n <= remain)) {
+          const piece = zh.slice(i, i + len)
+          if (await probeYoudao(piece, lang)) {
+            hit = piece
+            break
+          }
+        }
+        if (!hit) return null
+        pieces.push(hit)
+        i += hit.length
+      }
+    } else {
+      for (const w of part.split(/\s+/).filter(Boolean)) {
+        if (!(await probeYoudao(w, lang))) return null
+        pieces.push(w)
+      }
+    }
+  }
+  return pieces.length ? pieces : null
+}
+
+/**
+ * 手机微信：百度直链会被拦截；有道仅词条。
+ * 先静默规划词条，再同一 Bridge 解锁内双缓冲连播，减少词间顿挫。
+ */
+async function playYoudaoWeChat(text: string, lang: string, epoch: number): Promise<boolean> {
+  const pieces = await planYoudaoPieces(text, lang, epoch)
+  if (!pieces || !pieces.length) return false
+  if (epoch && epoch !== speakEpoch) return true
+
+  const urls = pieces.map((p) => (p ? youdaoUrl(p, lang) : ''))
+
+  const runChain = (): Promise<boolean> =>
+    new Promise((resolve) => {
+      const a = new Audio()
+      const b = new Audio()
+      a.preload = 'auto'
+      b.preload = 'auto'
+      a.volume = 1
+      b.volume = 1
+      let cur = a
+      let nxt = b
+      let nxtReadyAt = -1
+      let settled = false
+      audioEl = cur
+
+      const finish = (ok: boolean) => {
+        if (settled) return
+        settled = true
+        resolve(ok)
+      }
+
+      const playAt = (index: number) => {
+        if (settled) return
+        if (epoch && epoch !== speakEpoch) {
+          finish(true)
+          return
+        }
+        if (index >= urls.length) {
+          finish(true)
+          return
+        }
+        const url = urls[index]
+        if (!url) {
+          setTimeout(() => playAt(index + 1), 50)
+          return
+        }
+
+        let cleaned = false
+        const cleanup = () => {
+          if (cleaned) return
+          cleaned = true
+          cur.removeEventListener('ended', onEnd)
+          cur.removeEventListener('error', onErr)
+          clearTimeout(watchdog)
+        }
+        const onEnd = () => {
+          cleanup()
+          const t = cur
+          cur = nxt
+          nxt = t
+          audioEl = cur
+          playAt(index + 1)
+        }
+        const onErr = () => {
+          cleanup()
+          finish(false)
+        }
+
+        // 已预载到当前缓冲则勿重设 src（重设会重载、加大缝隙）
+        if (nxtReadyAt !== index) {
+          cur.src = url
+        }
+        nxtReadyAt = -1
+
+        let look = index + 1
+        while (look < urls.length && !urls[look]) look++
+        if (look < urls.length) {
+          try {
+            nxt.src = urls[look]
+            nxt.load()
+            nxtReadyAt = look
+          } catch {
+            nxtReadyAt = -1
+          }
+        }
+
+        const watchdog = setTimeout(() => {
+          if (cur.ended || cur.currentTime > 0.05) onEnd()
+          else onErr()
+        }, 10000)
+
+        cur.addEventListener('ended', onEnd)
+        cur.addEventListener('error', onErr)
+        const p = cur.play()
+        if (p && typeof p.then === 'function') {
+          p.then(() => {
+            audioUnlockOk = true
+            const word = pieces[index]
+            if (word) youdaoHitCache.set(`${lang}|${word}`, true)
+          }).catch(() => onErr())
+        }
+      }
+
+      playAt(0)
+    })
+
+  return withWeChatAudioGate(runChain)
 }
 
 async function playUrlAudio(url: string, waitEnd = false, epoch = 0): Promise<boolean> {
@@ -477,78 +735,67 @@ async function playUrlAudio(url: string, waitEnd = false, epoch = 0): Promise<bo
   try {
     if (epoch && epoch !== speakEpoch) return true
 
-    // 微信：复用已解锁的同一个 Audio（新元素不会继承解锁状态）
-    // 其它浏览器：每次新建，规避部分 X5 复用后事件丢失的问题
-    let el: HTMLAudioElement
-    if (isWeChat()) {
-      if (!audioEl) {
-        audioEl = new Audio()
-        audioEl.preload = 'auto'
-      }
-      el = audioEl
-      try {
-        el.pause()
-      } catch {
-        /* ignore */
-      }
-    } else {
-      if (netEl) {
+    const doPlay = (): Promise<boolean> =>
+      new Promise((resolve) => {
+        if (epoch && epoch !== speakEpoch) {
+          resolve(true)
+          return
+        }
+        // 手机微信：在 Bridge 回调里新建 Audio 并立刻 play
         try {
-          netEl.pause()
+          audioEl?.pause()
         } catch {
           /* ignore */
         }
-      }
-      el = new Audio()
-      netEl = el
-      el.preload = 'auto'
-    }
-
-    el.muted = false
-    el.volume = 1
-    el.src = url
-    try {
-      el.load()
-    } catch {
-      /* ignore */
-    }
-
-    const started = await withWeChatAudioGate(
-      () =>
-        new Promise<boolean>((resolve) => {
-          let done = false
-          const finish = (ok: boolean) => {
-            if (done) return
-            done = true
-            el.removeEventListener('error', onErr)
-            el.removeEventListener('playing', onOk)
-            el.removeEventListener('timeupdate', onProgress)
-            clearTimeout(timer)
-            resolve(ok)
+        if (!isWeChat() && netEl) {
+          try {
+            netEl.pause()
+          } catch {
+            /* ignore */
           }
-          const onErr = () => finish(false)
-          const onOk = () => finish(true)
-          // 必须真的播出了进度才算成功：stalled 状态 paused=false 会造成「假成功无声」
-          const onProgress = () => {
-            if (el.currentTime > 0.02) finish(true)
-          }
-          el.addEventListener('error', onErr)
-          el.addEventListener('playing', onOk)
-          el.addEventListener('timeupdate', onProgress)
-          const timer = setTimeout(() => finish(el.currentTime > 0.02), isWeChat() ? 5000 : 4000)
-          const p = el.play()
-          if (p && typeof p.then === 'function') {
-            p.then(() => {
-              if (!el.paused && el.currentTime > 0.02) finish(true)
-            }).catch(() => finish(false))
-          }
-        })
-    )
+        }
+        const el = new Audio()
+        if (isWeChat()) audioEl = el
+        else netEl = el
+        el.preload = 'auto'
+        el.muted = false
+        el.volume = 1
+        el.src = url
 
+        let done = false
+        const finish = (ok: boolean) => {
+          if (done) return
+          done = true
+          el.removeEventListener('error', onErr)
+          el.removeEventListener('playing', onOk)
+          el.removeEventListener('ended', onOk)
+          clearTimeout(timer)
+          resolve(ok)
+        }
+        const onErr = () => finish(false)
+        const onOk = () => finish(true)
+        el.addEventListener('error', onErr)
+        el.addEventListener('playing', onOk)
+        el.addEventListener('ended', onOk)
+        // 有道未收录会很快 error；勿用 readyState 判成功（易假成功）
+        const timer = setTimeout(() => finish(el.currentTime > 0.01 || (!el.paused && el.duration > 0)), 2200)
+        const p = el.play()
+        if (p && typeof p.then === 'function') {
+          p.then(() => {
+            setTimeout(() => {
+              if (el.currentTime > 0.01 || (!el.paused && el.duration > 0)) finish(true)
+            }, 200)
+          }).catch(() => finish(false))
+        }
+      })
+
+    const started = isWeChat() ? await withWeChatAudioGate(doPlay) : await doPlay()
     if (!started) return false
     if (epoch && epoch !== speakEpoch) return true
     if (!waitEnd) return true
 
+    const el = (isWeChat() ? audioEl : netEl) as HTMLAudioElement | null
+    if (!el) return true
     await new Promise<void>((resolve) => {
       let done = false
       const finish = () => {
@@ -556,13 +803,11 @@ async function playUrlAudio(url: string, waitEnd = false, epoch = 0): Promise<bo
         done = true
         el.removeEventListener('ended', finish)
         el.removeEventListener('error', finish)
-        el.removeEventListener('pause', finish)
         clearTimeout(timer)
         resolve()
       }
       el.addEventListener('ended', finish)
       el.addEventListener('error', finish)
-      el.addEventListener('pause', finish)
       const timer = setTimeout(finish, 12000)
     })
     return true
@@ -585,20 +830,21 @@ async function speakFallback(
   // 过长截断保护；仍含 emoji 必失败
   if (text.length > 60 || hasUnsafeSpeakChars(text)) return false
   const lang = resolveLang(text, options)
-  const url = ttsUrl(text, lang)
-  const ok = await playUrlAudio(url, waitEnd, epoch)
-  if (ok && typeof caches !== 'undefined') {
-    caches.open(CACHE_NAME).then(async (cache) => {
-      try {
-        const hit = await cache.match(url)
-        if (!hit) {
-          const res = await fetch(url, { mode: 'no-cors', credentials: 'omit' })
-          await cache.put(url, res)
-        }
-      } catch {
-        /* ignore */
-      }
-    })
+
+  // Chrome / 夸克等：百度直链可播长句，无需占代理流量
+  if (!isWeChat()) {
+    return playUrlAudio(baiduTtsUrl(text, lang), waitEnd, epoch)
+  }
+
+  // 微信：直链被拦 → 自建代理下载整句 → Cache API 本地缓存 → blob 播放
+  const objectUrl = await loadProxyTtsObjectUrl(text, lang)
+  if (!objectUrl) return false
+  // blob 不可在 play 刚开始就 revoke，否则会中途无声；等播完再释放
+  const ok = await playUrlAudio(objectUrl, true, epoch)
+  try {
+    URL.revokeObjectURL(objectUrl)
+  } catch {
+    /* ignore */
   }
   return ok
 }
@@ -633,12 +879,24 @@ async function speakOnce(text: string, options: SpeakOptions, waitEnd: boolean):
   }
 
   if (isAndroid()) {
-    // 微信：系统语音几乎整页不可用，只走在线音频，避免空耗后误报「没联网」
+    // 手机微信：代理整句+本地缓存 → 系统语音 → 有道词条（最后兜底）
     if (isWeChat()) {
-      const ok = await tryNet()
-      if (ok) markSpokeOk(epoch)
-      else if (epoch === speakEpoch) console.warn('[tts] 微信发音失败:', say, getTtsDebugInfo())
-      return ok || epoch !== speakEpoch
+      if (await tryNet()) {
+        markSpokeOk(epoch)
+        return true
+      }
+      if (epoch !== speakEpoch) return true
+      if (await speakWeb(say, opts, waitEnd, epoch)) {
+        markSpokeOk(epoch)
+        return true
+      }
+      if (epoch !== speakEpoch) return true
+      if (await playYoudaoWeChat(say, lang, epoch)) {
+        markSpokeOk(epoch)
+        return true
+      }
+      if (epoch === speakEpoch) console.warn('[tts] 微信发音失败:', say, getTtsDebugInfo())
+      return epoch !== speakEpoch
     }
 
     // 网络被判定不可用时跳过首次在线尝试，直接走本地备份
@@ -704,13 +962,14 @@ export function speak(text: string, options: SpeakOptions = {}): void {
   if (!trimmed) return
 
   void (async () => {
-    // 微信必须先完成 JSBridge + 静音解锁，再播在线音频
     unlockSpeak()
-    await ensureAudioUnlocked()
+    // 手机微信不要先 await 预解锁，避免占掉点击手势
+    if (!(isWeChat() && isAndroid())) {
+      await ensureAudioUnlocked()
+    }
     const ok = await speakOnce(trimmed, options, false)
     if (!ok && !options.silent) {
-      const lang = resolveLang(trimmed, options)
-      tipOnce(failureTip(lang))
+      tipOnce(failureTip(resolveLang(trimmed, options)))
     }
   })()
   // #endif
@@ -723,9 +982,9 @@ export function speakAsync(text: string, options: SpeakOptions = {}): Promise<vo
   const trimmed = text.trim()
   if (!trimmed) return Promise.resolve()
   unlockSpeak()
-  return ensureAudioUnlocked()
-    .then(() => speakOnce(trimmed, options, true))
-    .then(() => undefined)
+  const prep =
+    isWeChat() && isAndroid() ? Promise.resolve() : ensureAudioUnlocked()
+  return prep.then(() => speakOnce(trimmed, options, true)).then(() => undefined)
   // #endif
   // #ifndef H5
   return Promise.resolve()

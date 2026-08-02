@@ -1,10 +1,12 @@
 import { defineConfig } from "vite";
 import uni from "@dcloudio/vite-plugin-uni";
 import { VitePWA } from "vite-plugin-pwa";
+import { kidlearnTtsProxyPlugin } from "./scripts/ttsProxyMiddleware";
 
 export default defineConfig({
   plugins: [
     uni(),
+    kidlearnTtsProxyPlugin(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["static/icons/*.png", "static/manifest.webmanifest"],
@@ -18,6 +20,22 @@ export default defineConfig({
             handler: "NetworkFirst",
             options: {
               cacheName: "pages",
+            },
+          },
+          {
+            // 发音 MP3：优先用本地缓存，断网也能复读已听过的句子
+            urlPattern: ({ url }) =>
+              url.pathname === "/api/tts" || url.pathname.endsWith("/kidlearnTts"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "kidlearn-tts-v1",
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+              cacheableResponse: {
+                statuses: [200],
+              },
             },
           },
         ],

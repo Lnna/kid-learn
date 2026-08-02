@@ -7,7 +7,13 @@ export function createApp() {
   if (typeof window !== "undefined") {
     import("virtual:pwa-register")
       .then(({ registerSW }) => {
-        registerSW({ immediate: true });
+        // 发现新版本时自动刷新，避免微信/浏览器一直用旧缓存包
+        const updateSW = registerSW({
+          immediate: true,
+          onNeedRefresh() {
+            void updateSW(true);
+          },
+        });
       })
       .catch(() => {
         /* PWA plugin may be unavailable in some builds */
