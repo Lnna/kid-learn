@@ -58,7 +58,12 @@ function onTap(item: TapReadActivity['items'][0]) {
   if (props.tts === false) return
   clearWordTimer()
   // 勿先 stopSpeak 再立刻 speak；由 speak() 处理打断与 cancel 间隔
-  const letter = (item.speak || item.label).trim()
+  // 拼音声母/韵母用 label，由 TTS 映射为一声汉字（如 e→婀）；勿用可能错调的 speak
+  const label = item.label.trim()
+  const letter = (/^[a-zA-ZüÜvāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]+$/.test(label)
+    ? label
+    : item.speak || item.label
+  ).trim()
   const word = item.subLabel?.trim()
   // 仅英文点读走「字母 → 单词」；中文副标题（如浮与沉）不要二次打断主句
   const enWord =

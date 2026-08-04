@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import { speak, unlockSpeak } from '../../utils/tts'
-import { toSpeakText, stripDecorations } from '../../utils/speakText'
+import { stripDecorations } from '../../utils/speakText'
 import { playSfx } from '../../utils/sfx'
 
 const props = withDefaults(
@@ -31,15 +31,12 @@ const props = withDefaults(
 
 function onSpeak() {
   if (!props.enabled) return
-  const raw = (props.text || '').trim()
+  const raw = stripDecorations((props.text || '').trim())
   if (!raw) return
-  // 先清 emoji；纯图案选项不发音、不报错
-  const zh = !props.lang || props.lang.toLowerCase().startsWith('zh')
-  const t = zh ? toSpeakText(raw) : stripDecorations(raw)
-  if (!t) return
   unlockSpeak()
   playSfx('tap')
-  speak(t, props.lang ? { lang: props.lang } : {})
+  // 拼音由 speak() 内部映为一声汉字；此处勿先乱换成错调字
+  speak(raw, props.lang ? { lang: props.lang } : {})
 }
 </script>
 

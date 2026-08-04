@@ -1,10 +1,11 @@
 import type { Connect, Plugin } from 'vite'
 import https from 'node:https'
 
-function fetchBaiduMp3(text: string, lang: 'zh' | 'en'): Promise<Buffer> {
+function fetchBaiduMp3(text: string, lang: 'zh' | 'en', spd = 3): Promise<Buffer> {
+  const speed = Math.min(7, Math.max(1, Math.round(spd)))
   const url =
     `https://fanyi.baidu.com/gettts?lan=${lang}` +
-    `&text=${encodeURIComponent(text)}&spd=3&source=web`
+    `&text=${encodeURIComponent(text)}&spd=${speed}&source=web`
 
   const get = (target: string): Promise<Buffer> =>
     new Promise((resolve, reject) => {
@@ -72,6 +73,7 @@ function ttsHandler(req: Connect.IncomingMessage, res: Connect.ServerResponse) {
     const lang = (u.searchParams.get('lang') || 'zh').toLowerCase().startsWith('en')
       ? 'en'
       : 'zh'
+    const spd = Number(u.searchParams.get('spd') || 3)
 
     if (!text) {
       res.statusCode = 400
@@ -80,7 +82,7 @@ function ttsHandler(req: Connect.IncomingMessage, res: Connect.ServerResponse) {
       return
     }
 
-    fetchBaiduMp3(text, lang)
+    fetchBaiduMp3(text, lang, spd)
       .then((buf) => {
         res.statusCode = 200
         res.setHeader('Access-Control-Allow-Origin', '*')

@@ -20,6 +20,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import OptionSpeak from './OptionSpeak.vue'
+import { isPinyinDrillToken } from '../../utils/pinyinSpeak'
 
 const props = withDefaults(
   defineProps<{
@@ -39,7 +40,12 @@ const props = withDefaults(
 const emit = defineEmits<{ select: [] }>()
 
 const letter = computed(() => String.fromCharCode(65 + Math.max(0, props.index)))
-const speakText = computed(() => (props.speak || props.label || '').trim())
+// 选项是拼音时朗读 label（TTS 内映为一声汉字），避免 speak 用错调字如「鹅」
+const speakText = computed(() => {
+  const label = (props.label || '').trim()
+  if (isPinyinDrillToken(label)) return label
+  return (props.speak || props.label || '').trim()
+})
 </script>
 
 <style scoped lang="scss">

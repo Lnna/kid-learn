@@ -12,6 +12,240 @@ import {
   unit,
 } from '../helpers'
 
+/* ── U0 拼音入门（幼小衔接，先认再辨） ── */
+
+const u0 = unit(
+  'chinese-0',
+  '拼音入门',
+  [
+    level(
+      'chinese-0-01',
+      '单韵母朋友',
+      [
+        tapRead('点读单韵母', [
+          { id: 'a', label: 'a', speak: '阿', icon: '🍉', color: '#FF6B6B' },
+          { id: 'o', label: 'o', speak: '喔', icon: '🐓', color: '#FFB347' },
+          { id: 'e', label: 'e', speak: '婀', icon: '🦢', color: '#4DA3FF' },
+          { id: 'i', label: 'i', speak: '衣', icon: '👕', color: '#3ECF8E' },
+          { id: 'u', label: 'u', speak: '乌', icon: '🐦‍⬛', color: '#9B7BFF' },
+          { id: 'v', label: 'ü', speak: '淤', icon: '🐟', color: '#FF8FB8' },
+        ], '先认识 6 个单韵母，点一点听一听'),
+        listenChoose(
+          '听一听，选韵母',
+          '阿',
+          [
+            { id: 'a', label: 'a', speak: '阿' },
+            { id: 'b', label: 'o', speak: '喔' },
+            { id: 'c', label: 'e', speak: '婀' },
+          ],
+          'a'
+        ),
+        listenChoose(
+          '听一听，选韵母',
+          '淤',
+          [
+            { id: 'a', label: 'u', speak: '乌' },
+            { id: 'b', label: 'ü', speak: '淤' },
+            { id: 'c', label: 'i', speak: '衣' },
+          ],
+          'b'
+        ),
+        quiz('认一认单韵母', [
+          {
+            id: 'q1',
+            question: '哪个是单韵母 a？',
+            options: [
+              { id: 'a', label: 'a', speak: '阿' },
+              { id: 'b', label: 'b', speak: '波' },
+              { id: 'c', label: 'm', speak: '摸' },
+            ],
+            answerId: 'a',
+          },
+          {
+            id: 'q2',
+            question: '「鹅」对应哪个韵母？',
+            options: [
+              { id: 'a', label: 'a', speak: '阿' },
+              { id: 'b', label: 'e', speak: '婀' },
+              { id: 'c', label: 'ü', speak: '淤' },
+            ],
+            answerId: 'b',
+          },
+          {
+            id: 'q3',
+            question: '圆圈上两点的韵母是？',
+            options: [
+              { id: 'a', label: 'u', speak: '乌' },
+              { id: 'b', label: 'ü', speak: '淤' },
+              { id: 'c', label: 'o', speak: '喔' },
+            ],
+            answerId: 'b',
+          },
+        ]),
+      ],
+      'a o e i u ü，一个一个认识'
+    ),
+
+    level(
+      'chinese-0-02',
+      '声母宝宝（一）',
+      [
+        tapRead('点读声母 b p m f', [
+          { id: 'b', label: 'b', speak: '玻', icon: '🎈', color: '#FF6B6B' },
+          { id: 'p', label: 'p', speak: '坡', icon: '🏔️', color: '#FFB347' },
+          { id: 'm', label: 'm', speak: '摸', icon: '🤚', color: '#4DA3FF' },
+          { id: 'f', label: 'f', speak: '佛', icon: '🪷', color: '#3ECF8E' },
+        ]),
+        tapRead('点读声母 d t n l', [
+          { id: 'd', label: 'd', speak: '德', icon: '🥁', color: '#FF6B6B' },
+          { id: 't', label: 't', speak: '特', icon: '🚕', color: '#FFB347' },
+          { id: 'n', label: 'n', speak: '讷', icon: '🥜', color: '#4DA3FF' },
+          { id: 'l', label: 'l', speak: '勒', icon: '🎵', color: '#3ECF8E' },
+        ]),
+        dragMatch('声母找朋友', [
+          { id: 'p1', left: 'b', right: '爸爸 bà' },
+          { id: 'p2', left: 'm', right: '妈妈 mā' },
+          { id: 'p3', left: 'd', right: '大 dà' },
+          { id: 'p4', left: 't', right: '他 tā' },
+        ]),
+        quiz('认声母', [
+          {
+            id: 'q1',
+            question: '「妈妈」的声母是？',
+            options: [
+              { id: 'a', label: 'b', speak: '玻' },
+              { id: 'b', label: 'm', speak: '摸' },
+              { id: 'c', label: 'f', speak: '佛' },
+            ],
+            answerId: 'b',
+          },
+          {
+            id: 'q2',
+            question: '哪个是声母 p？',
+            options: [
+              { id: 'a', label: 'p', speak: '坡' },
+              { id: 'b', label: 'a', speak: '啊' },
+              { id: 'c', label: 'o', speak: '喔' },
+            ],
+            answerId: 'a',
+          },
+        ]),
+      ],
+      'b p m f · d t n l'
+    ),
+
+    level(
+      'chinese-0-03',
+      '声母宝宝（二）',
+      [
+        tapRead('点读 g k h j q x', [
+          { id: 'g', label: 'g', speak: '哥', icon: '🎸', color: '#FF6B6B' },
+          { id: 'k', label: 'k', speak: '科', icon: '🔬', color: '#FFB347' },
+          { id: 'h', label: 'h', speak: '喝', icon: '🥤', color: '#4DA3FF' },
+          { id: 'j', label: 'j', speak: '基', icon: '🐔', color: '#3ECF8E' },
+          { id: 'q', label: 'q', speak: '欺', icon: '7️⃣', color: '#9B7BFF' },
+          { id: 'x', label: 'x', speak: '希', icon: '🍉', color: '#FF8FB8' },
+        ]),
+        tapRead('点读 z c s zh ch sh r', [
+          { id: 'z', label: 'z', speak: '资', icon: '🔤', color: '#FF6B6B' },
+          { id: 'c', label: 'c', speak: '雌', icon: '🐱', color: '#FFB347' },
+          { id: 's', label: 's', speak: '思', icon: '💭', color: '#4DA3FF' },
+          { id: 'zh', label: 'zh', speak: '知', icon: '📖', color: '#3ECF8E' },
+          { id: 'ch', label: 'ch', speak: '吃', icon: '🍚', color: '#9B7BFF' },
+          { id: 'sh', label: 'sh', speak: '诗', icon: '📜', color: '#FF8FB8' },
+          { id: 'r', label: 'r', speak: '日', icon: '☀️', color: '#FFC84A' },
+        ]),
+        listenChoose(
+          '听音选声母',
+          '喝',
+          [
+            { id: 'a', label: 'g', speak: '哥' },
+            { id: 'b', label: 'k', speak: '科' },
+            { id: 'c', label: 'h', speak: '喝' },
+          ],
+          'c'
+        ),
+        quiz('认一认', [
+          {
+            id: 'q1',
+            question: '「知」的声母是？',
+            options: [
+              { id: 'a', label: 'z', speak: '资' },
+              { id: 'b', label: 'zh', speak: '知' },
+              { id: 'c', label: 'j', speak: '基' },
+            ],
+            answerId: 'b',
+          },
+          {
+            id: 'q2',
+            question: '两个字母的声母是？',
+            options: [
+              { id: 'a', label: 'b', speak: '玻' },
+              { id: 'b', label: 'sh', speak: '诗' },
+              { id: 'c', label: 'a', speak: '啊' },
+            ],
+            answerId: 'b',
+          },
+        ]),
+      ],
+      '后半截声母，慢慢认'
+    ),
+
+    level(
+      'chinese-0-04',
+      '拼一拼·读一读',
+      [
+        blend('两拼音节', [
+          { id: 'b1', parts: ['b', 'ā'], result: 'bā', speak: '八' },
+          { id: 'b2', parts: ['m', 'ā'], result: 'mā', speak: '妈' },
+          { id: 'b3', parts: ['b', 'à'], result: 'bà', speak: '爸' },
+          { id: 'b4', parts: ['t', 'ā'], result: 'tā', speak: '他' },
+        ], '声母加韵母，拼出来啦'),
+        listenChoose(
+          '听音节选一选',
+          '妈',
+          [
+            { id: 'a', label: 'mā', speak: '妈' },
+            { id: 'b', label: 'bā', speak: '八' },
+            { id: 'c', label: 'tā', speak: '他' },
+          ],
+          'a'
+        ),
+        dragMatch('拼音和汉字', [
+          { id: 'p1', left: 'bā', right: '八' },
+          { id: 'p2', left: 'mā', right: '妈' },
+          { id: 'p3', left: 'bà', right: '爸' },
+          { id: 'p4', left: 'dà', right: '大' },
+        ]),
+        quiz('小小拼读', [
+          {
+            id: 'q1',
+            question: 'b + ā 拼出来是？',
+            options: [
+              { id: 'a', label: '八 bā', speak: '八' },
+              { id: 'b', label: '妈 mā', speak: '妈' },
+              { id: 'c', label: '爸 bà', speak: '爸' },
+            ],
+            answerId: 'a',
+          },
+          {
+            id: 'q2',
+            question: '「大」的拼音是？',
+            options: [
+              { id: 'a', label: 'tā', speak: '他' },
+              { id: 'b', label: 'dà', speak: '大' },
+              { id: 'c', label: 'bā', speak: '八' },
+            ],
+            answerId: 'b',
+          },
+        ]),
+      ],
+      '会认声母韵母，再学拼读'
+    ),
+  ],
+  '认识声母、韵母，再开始拼'
+)
+
 /* ── U1 拼音冲刺 ── */
 
 const u1 = unit(
@@ -1819,6 +2053,6 @@ export const chinese: Subject = {
   emoji: '📚',
   color: '#FF7A59',
   mascot: 'panda',
-  description: '易混拼音冲刺、汉字形近多音、阅读理解与表达',
-  units: [u1, u2, u3, u4],
+  description: '拼音入门、易混辨析、汉字形近多音、阅读与表达',
+  units: [u0, u1, u2, u3, u4],
 }

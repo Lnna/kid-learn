@@ -1,4 +1,9 @@
 import { hasUnsafeSpeakChars, stripDecorations, toSpeakText } from './speakText'
+import {
+  expandPinyinForSpeech,
+  isMostlyPinyinLatin,
+  pinyinLocalAudioUrl,
+} from './pinyinSpeak'
 
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
@@ -306,6 +311,8 @@ function resolveLang(text: string, options: SpeakOptions): string {
   // 含中文，或数字/算式（无拉丁长词）→ 中文引擎
   if (/[\u4e00-\u9fff]/.test(text)) return 'zh-CN'
   if (/[+\-−–×÷=＝?？]/.test(text) || /^\d+(\s|$)/.test(text)) return 'zh-CN'
+  // 声母/韵母/音节（zh、an、mā）→ 中文，避免读成英文字母
+  if (isMostlyPinyinLatin(text)) return 'zh-CN'
   if (/[a-zA-Z]/.test(text)) return 'en-US'
   return 'zh-CN'
 }
@@ -313,12 +320,17 @@ function resolveLang(text: string, options: SpeakOptions): string {
 function prepareText(text: string, lang: string): string {
   const trimmed = text.trim()
   if (!trimmed) return ''
-  // 中文：算式规范化 + 去 emoji；英文：只去 emoji
-  // 绝不要回退到带 emoji 的原文（引擎会直接失败）
-  if (lang.toLowerCase().startsWith('zh')) {
-    return toSpeakText(trimmed)
+  // 拼音 → 呼读/一声汉字（b→波，e→婀）
+  const expanded = expandPinyinForSpeech(trimmed)
+  if (lang.toLowerCase().startsWith('zh') || isMostlyPinyinLatin(trimmed)) {
+    return toSpeakText(expanded)
   }
-  return stripDecorations(trimmed)
+  return stripDecorations(expanded === trimmed ? trimmed : expanded)
+}
+
+function waitEndTimeoutMs(text: string, rate?: number): number {
+  const r = rate && rate > 0 ? rate : 0.92
+  return Math.min(12000, Math.max(2800, (900 + text.length * 320) / r))
 }
 
 function isInterruptError(err: unknown): boolean {
@@ -384,7 +396,7 @@ function speakWeb(text: string, options: SpeakOptions, waitEnd = false, epoch = 
             if (stale() || isInterruptError(e)) done(true)
             else done(false)
           }
-          setTimeout(() => done(true), Math.min(12000, 800 + text.length * 220))
+          setTimeout(() => done(true), waitEndTimeoutMs(text, options.rate))
         } else {
           let heardStart = false
           u.onstart = () => {
@@ -457,26 +469,36 @@ function speakWeb(text: string, options: SpeakOptions, waitEnd = false, epoch = 
  * 微信同源 TTS：本地 = Vite 中间件 /api/tts；线上 = Nginx 代理 /api/tts。
  * 路径统一，勿再走 CloudBase / 百度直链（微信会拦百度域）。
  */
-function proxyTtsUrl(text: string, lang: string): string {
+function ttsSpd(rate?: number): number {
+  // 拼音四声操练用更慢语速
+  if (rate != null && rate < 0.75) return 1
+  return 3
+}
+
+function proxyTtsUrl(text: string, lang: string, spd = 3): string {
   const q = encodeURIComponent(text.slice(0, 60))
   const lan = lang.toLowerCase().startsWith('en') ? 'en' : 'zh'
-  return `/api/tts?text=${q}&lang=${lan}`
+  return `/api/tts?text=${q}&lang=${lan}&spd=${spd}`
 }
 
 /** 百度直链：仅非微信备用 */
-function baiduTtsUrl(text: string, lang: string): string {
+function baiduTtsUrl(text: string, lang: string, spd = 3): string {
   const q = encodeURIComponent(text.slice(0, 60))
   const lan = lang.toLowerCase().startsWith('en') ? 'en' : 'zh'
-  return `https://fanyi.baidu.com/gettts?lan=${lan}&text=${q}&spd=3&source=web`
+  return `https://fanyi.baidu.com/gettts?lan=${lan}&text=${q}&spd=${spd}&source=web`
 }
 
 /**
  * 从自建代理下载 MP3 → Cache API 本地缓存 → 返回 blob: URL。
  * 再次播放同一句直接读缓存，不打百度。
  */
-async function loadProxyTtsObjectUrl(text: string, lang: string): Promise<string | null> {
+async function loadProxyTtsObjectUrl(
+  text: string,
+  lang: string,
+  spd = 3
+): Promise<string | null> {
   // #ifdef H5
-  const url = proxyTtsUrl(text, lang)
+  const url = proxyTtsUrl(text, lang, spd)
   try {
     let body: ArrayBuffer | null = null
     if (typeof caches !== 'undefined') {
@@ -810,14 +832,15 @@ async function speakFallback(
   // 过长截断保护；仍含 emoji 必失败
   if (text.length > 60 || hasUnsafeSpeakChars(text)) return false
   const lang = resolveLang(text, options)
+  const spd = ttsSpd(options.rate)
 
   // Chrome / 夸克等：百度直链可播长句，无需占代理流量
   if (!isWeChat()) {
-    return playUrlAudio(baiduTtsUrl(text, lang), waitEnd, epoch)
+    return playUrlAudio(baiduTtsUrl(text, lang, spd), waitEnd, epoch)
   }
 
   // 微信：直链被拦 → 自建代理下载整句 → Cache API 本地缓存 → blob 播放
-  const objectUrl = await loadProxyTtsObjectUrl(text, lang)
+  const objectUrl = await loadProxyTtsObjectUrl(text, lang, spd)
   if (!objectUrl) return false
   // blob 不可在 play 刚开始就 revoke，否则会中途无声；等播完再释放
   const ok = await playUrlAudio(objectUrl, true, epoch)
@@ -838,6 +861,19 @@ async function speakFallback(
 async function speakOnce(text: string, options: SpeakOptions, waitEnd: boolean): Promise<boolean> {
   const epoch = ++speakEpoch
   const lang = resolveLang(text, options)
+
+  // 声母/单韵母：本地预录（声调准确），不走「德/特」等错调汉字
+  if (!lang.toLowerCase().startsWith('en')) {
+    const local = pinyinLocalAudioUrl(text.trim())
+    if (local) {
+      if (await playUrlAudio(local, waitEnd, epoch)) {
+        markSpokeOk(epoch)
+        return true
+      }
+      if (epoch !== speakEpoch) return true
+    }
+  }
+
   const say = prepareText(text, lang)
   // 清完没有可读文字（纯 emoji）→ 当作成功跳过，绝不报错
   if (!say) return true
@@ -964,7 +1000,9 @@ export function speakAsync(text: string, options: SpeakOptions = {}): Promise<vo
   unlockSpeak()
   const prep =
     isWeChat() && isAndroid() ? Promise.resolve() : ensureAudioUnlocked()
-  return prep.then(() => speakOnce(trimmed, options, true)).then(() => undefined)
+  return prep
+    .then(() => speakOnce(trimmed, options, true))
+    .then(() => undefined)
   // #endif
   // #ifndef H5
   return Promise.resolve()

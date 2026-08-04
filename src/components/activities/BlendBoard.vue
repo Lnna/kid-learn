@@ -62,7 +62,13 @@ function revealTo(i: number) {
   if (i === revealed.value) {
     revealed.value++
     playSfx('tap')
-    if (props.tts !== false) speak(current.value.parts[i], { lang: current.value.speakLang })
+    if (props.tts !== false) {
+      // 拼音部件 → 一声定调汉字（由 speak/prepareText 展开）
+      speak(current.value.parts[i], {
+        lang: current.value.speakLang || 'zh-CN',
+        rate: 0.7,
+      })
+    }
     if (revealed.value >= current.value.parts.length) {
       setTimeout(sayResult, 300)
     }
