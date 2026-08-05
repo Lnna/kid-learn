@@ -1,14 +1,24 @@
 <template>
-  <view class="soft">
+  <view
+    class="soft"
+    @touchstart.prevent="onStart"
+    @touchmove.prevent="onMove"
+    @touchend.prevent="onEnd"
+    @touchcancel.prevent="onEnd"
+    @mousedown.prevent="onMouseDown"
+  >
     <view
       class="blob"
-      :class="[result.physical, { glow: result.effect === 'glow' && lightsOff, pearl: result.effect === 'pearl', glitter: result.effect === 'glitter' }]"
+      :class="[
+        result.physical,
+        {
+          glow: result.effect === 'glow' && lightsOff,
+          pearl: result.effect === 'pearl',
+          glitter: result.effect === 'glitter',
+          dragging,
+        },
+      ]"
       :style="blobStyle"
-      @touchstart.prevent="onStart"
-      @touchmove.prevent="onMove"
-      @touchend.prevent="onEnd"
-      @touchcancel.prevent="onEnd"
-      @mousedown.prevent="onMouseDown"
     >
       <view v-if="result.effect === 'glitter'" class="sparks">
         <view v-for="i in 10" :key="i" class="spark" :style="sparkStyle(i)" />
@@ -24,14 +34,14 @@
     >
       🧲
     </view>
-    <text v-if="result.effect === 'iron'" class="hint">拖动磁铁靠近胶体</text>
+    <text class="hint">按住拖动会拉长/压扁 · 松手回中间</text>
   </view>
 </template>
 
 <script setup lang="ts">
 /**
- * 纯 CSS/transform 胶体：不依赖 uni-canvas，保证各端可见。
- * 闲置回中；按住保持；松手回弹。
+ * 纯 CSS 胶体：触摸绑在整块实验区上，保证手机拖动不断触；
+ * 用宽高+圆角模拟拉长/压扁，形变幅度明显。
  */
 import { computed, reactive, ref, watch } from 'vue'
 import type { SlimeResult } from '../../data/slime/types'
@@ -48,28 +58,43 @@ const props = withDefaults(
 
 const x = ref(0)
 const y = ref(0)
-const stretch = ref(1)
-const squish = ref(1)
+const w = ref(1)
+const h = ref(1)
+const skew = ref(0)
 const dragging = ref(false)
 const last = reactive({ x: 0, y: 0 })
-const mag = reactive({ x: 70, y: -30 })
+const origin = reactive({ x: 0, y: 0 })
+const mag = reactive({ x: 80, y: -40 })
 const magDrag = reactive({ on: false, ox: 0, oy: 0, sx: 0, sy: 0 })
 let lastHaptic = 0
-let releaseTimer: ReturnType<typeof setTimeout> | null = null
+
+const baseSize = computed(() => {
+  if (props.result.physical === 'runny') return { w: 250, h: 120 }
+  if (props.result.physical === 'firm') return { w: 200, h: 170 }
+  return { w: 220, h: 150 }
+})
 
 const resist = computed(() => {
-  if (props.result.physical === 'firm') return 0.35
-  if (props.result.physical === 'runny') return 1
-  return 0.65
+  if (props.result.physical === 'firm') return 0.4
+  if (props.result.physical === 'runny') return 1.05
+  return 0.7
 })
 
 const blobStyle = computed(() => {
-  const sx = stretch.value
-  const sy = squish.value / Math.sqrt(Math.max(0.5, sx))
+  const bw = baseSize.value.w * w.value
+  const bh = baseSize.value.h * h.value
+  // 横向拖更扁长，纵向拖更瘦高
+  const br =
+    Math.abs(skew.value) > 0.2
+      ? `${48 + skew.value * 10}% ${52 - skew.value * 10}% ${55 + skew.value * 8}% ${45 - skew.value * 8}% / ${55 - Math.abs(skew.value) * 12}% ${50 + Math.abs(skew.value) * 8}% ${45 + Math.abs(skew.value) * 10}% ${50}%`
+      : undefined
   return {
     background: props.result.color,
-    opacity: props.result.opaque ? 1 : 0.82,
-    transform: `translate(-50%, -50%) translate(${x.value}px, ${y.value}px) scale(${sx}, ${sy})`,
+    opacity: props.result.opaque ? 1 : 0.84,
+    width: bw + 'rpx',
+    height: bh + 'rpx',
+    borderRadius: br,
+    transform: `translate(-50%, -50%) translate(${x.value}px, ${y.value}px) skewX(${skew.value * 8}deg)`,
   }
 })
 
@@ -78,113 +103,121 @@ function sparkStyle(i: number) {
   return {
     left: 50 + Math.cos(a) * (28 + (i % 3) * 8) + '%',
     top: 45 + Math.sin(a) * (22 + (i % 2) * 8) + '%',
-    animationDelay: (i * 0.12) + 's',
+    animationDelay: i * 0.12 + 's',
   }
+}
+
+function touchXY(e: any) {
+  const t = e?.touches?.[0] || e?.changedTouches?.[0] || e
+  const tx = t.clientX ?? t.pageX ?? t.x ?? 0
+  const ty = t.clientY ?? t.pageY ?? t.y ?? 0
+  return { tx, ty }
 }
 
 function haptic() {
   const now = Date.now()
-  if (now - lastHaptic < 90) return
+  if (now - lastHaptic < 80) return
   lastHaptic = now
   dragPulse(props.result.hardness)
 }
 
-function resetHome(animate = true) {
-  if (releaseTimer) clearTimeout(releaseTimer)
-  if (!animate) {
-    x.value = 0
-    y.value = 0
-    stretch.value = 1
-    squish.value = 1
-    return
+function applyShapeFromDrag() {
+  const dx = x.value
+  const dy = y.value
+  const dist = Math.hypot(dx, dy)
+  const p = props.result.physical
+  const maxStretch = p === 'firm' ? 1.35 : p === 'runny' ? 1.9 : 1.6
+  const maxSquish = p === 'firm' ? 0.72 : p === 'runny' ? 0.45 : 0.55
+
+  // 按拖拽主方向变形：横拉变宽变矮，纵拉变高变窄
+  const ax = Math.abs(dx)
+  const ay = Math.abs(dy)
+  if (ax >= ay) {
+    const k = Math.min(1, ax / 90)
+    w.value = 1 + (maxStretch - 1) * k
+    h.value = 1 - (1 - maxSquish) * k
+    skew.value = Math.max(-1, Math.min(1, dx / 120))
+  } else {
+    const k = Math.min(1, ay / 90)
+    w.value = 1 - (1 - maxSquish) * k * 0.85
+    h.value = 1 + (maxStretch - 1) * k
+    skew.value = Math.max(-0.6, Math.min(0.6, dx / 160))
   }
-  // 松手：先保持一瞬，再回到正中
-  releaseTimer = setTimeout(() => {
-    x.value = 0
-    y.value = 0
-    stretch.value = 1
-    squish.value = 1
-  }, 40)
+
+  // 距离越大整体越“拽得开”
+  if (dist > 20) {
+    const boost = Math.min(0.25, (dist - 20) / 400)
+    if (ax >= ay) w.value += boost
+    else h.value += boost
+  }
 }
 
-function pokeBurst() {
+function resetHome() {
+  x.value = 0
+  y.value = 0
+  w.value = 1
+  h.value = 1
+  skew.value = 0
+}
+
+function onStart(e: any) {
+  const { tx, ty } = touchXY(e)
+  dragging.value = true
+  last.x = tx
+  last.y = ty
+  origin.x = tx
+  origin.y = ty
+  // 按下立刻压扁一点，反馈“戳到了”
   const p = props.result.physical
-  stretch.value = p === 'firm' ? 1.12 : p === 'runny' ? 1.45 : 1.28
-  squish.value = p === 'firm' ? 0.92 : p === 'runny' ? 0.7 : 0.82
+  w.value = p === 'firm' ? 1.08 : 1.2
+  h.value = p === 'firm' ? 0.9 : 0.72
   lightTap()
   playSfx('tap')
   haptic()
-  setTimeout(() => {
-    if (!dragging.value) {
-      stretch.value = 1
-      squish.value = 1
-    }
-  }, 180)
 }
 
-function onStart(e: TouchEvent) {
-  const t = e.touches[0]
-  dragging.value = true
-  last.x = t.clientX
-  last.y = t.clientY
-  if (releaseTimer) clearTimeout(releaseTimer)
-  pokeBurst()
-}
-
-function onMove(e: TouchEvent) {
+function onMove(e: any) {
   if (!dragging.value) return
-  const t = e.touches[0]
-  const dx = (t.clientX - last.x) * resist.value
-  const dy = (t.clientY - last.y) * resist.value
+  const { tx, ty } = touchXY(e)
+  const dx = (tx - last.x) * resist.value
+  const dy = (ty - last.y) * resist.value
   x.value += dx
   y.value += dy
-  last.x = t.clientX
-  last.y = t.clientY
-  const pull = 1 + Math.min(0.55, Math.hypot(x.value, y.value) / 180)
-  stretch.value = props.result.physical === 'firm' ? Math.min(pull, 1.18) : pull
-  squish.value = props.result.physical === 'runny' ? 0.75 : 0.9
+  // 限制别拖出实验区太远
+  x.value = Math.max(-120, Math.min(120, x.value))
+  y.value = Math.max(-100, Math.min(100, y.value))
+  last.x = tx
+  last.y = ty
+  applyShapeFromDrag()
   haptic()
 
-  // 磁铁吸引（距离近则胶体微移）
   if (props.result.effect === 'iron') {
-    const mx = mag.x
-    const my = mag.y
-    const d = Math.hypot(x.value - mx, y.value - my)
-    if (d < 90) {
-      const pullM = props.result.physical === 'firm' ? 0.06 : 0.16
-      x.value += (mx - x.value) * pullM
-      y.value += (my - y.value) * pullM
+    const d = Math.hypot(x.value - mag.x, y.value - mag.y)
+    if (d < 100) {
+      const pullM = props.result.physical === 'firm' ? 0.07 : 0.18
+      x.value += (mag.x - x.value) * pullM
+      y.value += (mag.y - y.value) * pullM
+      applyShapeFromDrag()
     }
   }
 }
 
 function onEnd() {
+  if (!dragging.value) return
   dragging.value = false
   lightTap()
-  resetHome(true)
+  // 回弹：先略过冲再回中
+  const p = props.result.physical
+  w.value = p === 'runny' ? 1.15 : 1.08
+  h.value = p === 'runny' ? 0.88 : 0.95
+  setTimeout(() => resetHome(), p === 'firm' ? 90 : 160)
 }
 
 function onMouseDown(e: MouseEvent) {
-  dragging.value = true
-  last.x = e.clientX
-  last.y = e.clientY
-  if (releaseTimer) clearTimeout(releaseTimer)
-  pokeBurst()
-  const move = (ev: MouseEvent) => {
-    if (!dragging.value) return
-    const dx = (ev.clientX - last.x) * resist.value
-    const dy = (ev.clientY - last.y) * resist.value
-    x.value += dx
-    y.value += dy
-    last.x = ev.clientX
-    last.y = ev.clientY
-    const pull = 1 + Math.min(0.55, Math.hypot(x.value, y.value) / 180)
-    stretch.value = props.result.physical === 'firm' ? Math.min(pull, 1.18) : pull
-    haptic()
-  }
+  onStart(e)
+  const move = (ev: MouseEvent) => onMove(ev)
   const up = () => {
-    dragging.value = false
-    resetHome(true)
+    onEnd()
     window.removeEventListener('mousemove', move)
     window.removeEventListener('mouseup', up)
   }
@@ -192,25 +225,26 @@ function onMouseDown(e: MouseEvent) {
   window.addEventListener('mouseup', up)
 }
 
-function onMagStart(e: TouchEvent) {
-  const t = e.touches[0]
+function onMagStart(e: any) {
+  const { tx, ty } = touchXY(e)
   magDrag.on = true
-  magDrag.sx = t.clientX
-  magDrag.sy = t.clientY
+  magDrag.sx = tx
+  magDrag.sy = ty
   magDrag.ox = mag.x
   magDrag.oy = mag.y
 }
 
-function onMagMove(e: TouchEvent) {
+function onMagMove(e: any) {
   if (!magDrag.on) return
-  const t = e.touches[0]
-  mag.x = magDrag.ox + (t.clientX - magDrag.sx)
-  mag.y = magDrag.oy + (t.clientY - magDrag.sy)
+  const { tx, ty } = touchXY(e)
+  mag.x = magDrag.ox + (tx - magDrag.sx)
+  mag.y = magDrag.oy + (ty - magDrag.sy)
   const d = Math.hypot(x.value - mag.x, y.value - mag.y)
-  if (d < 100) {
-    const pullM = props.result.physical === 'firm' ? 0.08 : 0.2
+  if (d < 110) {
+    const pullM = props.result.physical === 'firm' ? 0.08 : 0.22
     x.value += (mag.x - x.value) * pullM
     y.value += (mag.y - y.value) * pullM
+    applyShapeFromDrag()
   }
 }
 
@@ -220,7 +254,7 @@ function onMagEnd() {
 
 watch(
   () => props.result.fingerprint,
-  () => resetHome(false)
+  () => resetHome()
 )
 </script>
 
@@ -228,14 +262,14 @@ watch(
 .soft {
   position: relative;
   width: 100%;
-  height: 420rpx;
-  margin: 12rpx auto 0;
+  height: 440rpx;
+  margin: 8rpx auto 0;
   touch-action: none;
 }
 .blob {
   position: absolute;
   left: 50%;
-  top: 46%;
+  top: 44%;
   width: 220rpx;
   height: 150rpx;
   border-radius: 50% 50% 46% 54% / 60% 60% 42% 42%;
@@ -243,17 +277,22 @@ watch(
     inset 0 -18rpx 36rpx rgba(0, 0, 0, 0.12),
     inset 0 16rpx 28rpx rgba(255, 255, 255, 0.35),
     0 16rpx 36rpx rgba(2, 136, 209, 0.22);
-  transition: border-radius 0.15s ease;
-  will-change: transform;
+  will-change: transform, width, height, border-radius;
+}
+.blob.dragging {
+  transition: none;
+}
+.blob:not(.dragging) {
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.4, 0.64, 1),
+    width 0.18s cubic-bezier(0.34, 1.4, 0.64, 1),
+    height 0.18s cubic-bezier(0.34, 1.4, 0.64, 1),
+    border-radius 0.18s ease;
 }
 .blob.runny {
-  width: 250rpx;
-  height: 120rpx;
   border-radius: 46% 54% 58% 42% / 48% 45% 55% 52%;
 }
 .blob.firm {
-  width: 200rpx;
-  height: 170rpx;
   border-radius: 48%;
 }
 .blob.glow {
@@ -274,6 +313,7 @@ watch(
 .sparks {
   position: absolute;
   inset: 0;
+  pointer-events: none;
 }
 .spark {
   position: absolute;
@@ -294,7 +334,7 @@ watch(
 .magnet {
   position: absolute;
   left: 50%;
-  top: 30%;
+  top: 28%;
   font-size: 48rpx;
   z-index: 3;
   touch-action: none;
