@@ -72,10 +72,17 @@ docs/slime-science-tips.md   # 小贴士全文（外审源文件）
 |------|------|
 | 透明度 | white → 低；clear → 高 |
 | 物理态 | 1–2 → 稀软；3 → 标准；4–5 → 硬实 |
-| 弹性 / 硬度 / 流动性 | 由物理态推导标签 |
 | 特效 | 由添加剂决定 |
 
-材料名称必须使用真实市售原料名，不得虚构。
+由物理态推导的标签（科学审核修订：Q 弹在中等交联最好，高交联更硬而非更弹）：
+
+| 滴数 | 物理态 | 硬度 | 弹性（Q 弹） | 流动性 |
+|------|--------|------|--------------|--------|
+| 1–2 | 稀软 | 低 | 低 | 高 |
+| 3 | 标准 | 中 | **高** | 中 |
+| 4–5 | 硬实 | 高 | 中→低 | 低 |
+
+材料名称必须使用真实市售原料名，不得虚构。科学小贴士全文见 `docs/slime-science-tips.md`（已按 2026-08-05 科学审核意见修订）。
 
 ---
 
@@ -114,7 +121,7 @@ docs/slime-science-tips.md   # 小贴士全文（外审源文件）
 | legend-glow-ghost | 夜光幽灵 | clear | 3 | glow | tip-glow-ghost |
 | legend-galaxy | 银河星云 | white | 3 | glitter | tip-galaxy |
 | legend-magneto | 万磁王 | clear | 3 | iron | tip-magneto |
-| legend-elastic | 弹性大师 | clear | 5 | none | tip-elastic |
+| legend-firm | 硬实大师 | clear | 5 | none | tip-firm |
 | legend-tears | 流动之泪 | clear | 1 | none | tip-tears |
 | legend-pearl-rainbow | 珠光彩虹 | clear | 3 | pearl | tip-pearl-rainbow |
 | legend-scent-candy | 香氛软糖 | white | 3 | fragrance | tip-scent-candy |
