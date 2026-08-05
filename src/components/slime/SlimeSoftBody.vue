@@ -1,8 +1,20 @@
 <template>
-  <view ref="rootRef" class="soft">
+  <view class="soft">
+    <!-- 始终可见的兜底胶体，避免 canvas 失败时整页空白 -->
+    <view
+      v-show="!canvasOk"
+      class="fallback"
+      :style="fallbackStyle"
+      @touchstart.prevent="onCssTouchStart"
+      @touchmove.prevent="onCssTouchMove"
+      @touchend.prevent="onCssTouchEnd"
+    />
     <canvas
-      :id="canvasId"
+      type="2d"
+      id="slimeSoftBody"
+      canvas-id="slimeSoftBody"
       class="soft__canvas"
+      :style="{ width: cssW + 'px', height: cssH + 'px', opacity: canvasOk ? 1 : 0 }"
       @touchstart.prevent="onTouchStart"
       @touchmove.prevent="onTouchMove"
       @touchend.prevent="onTouchEnd"
@@ -14,11 +26,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 史莱姆软体：逻辑坐标一律用「画布 client 宽高」实时测量，
- * 闲置时硬编码贴回画面中心，避免沉到右下角。
- */
-import { onMounted, onBeforeUnmount, watch, ref, nextTick, getCurrentInstance } from 'vue'
+import { computed, getCurrentInstance, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { SlimeResult } from '../../data/slime/types'
 import { dragPulse, lightTap } from '../../utils/haptics'
 import { playSfx } from '../../utils/sfx'
@@ -31,29 +39,28 @@ const props = withDefaults(
   { lightsOff: false }
 )
 
-const RING = 20
-const canvasId = `slime-soft-${Math.random().toString(36).slice(2, 9)}`
-const rootRef = ref<HTMLElement | { $el?: HTMLElement } | null>(null)
+const RING = 18
+const cssW = 300
+const cssH = 260
 const instance = getCurrentInstance()
 
 type Pt = { x: number; y: number; px: number; py: number }
 type Spring = { a: number; b: number; len: number; k: number }
-type Spark = { ang: number; r: number; size: number; phase: number }
 
-let canvas: HTMLCanvasElement | null = null
+const canvasOk = ref(false)
+const cssStretch = ref(1)
+const cssOx = ref(0)
+const cssOy = ref(0)
+
+let canvas: any = null
 let ctx: CanvasRenderingContext2D | null = null
 let dpr = 1
-let W = 320
-let H = 280
-
 let pts: Pt[] = []
 let home: { x: number; y: number }[] = []
 let springs: Spring[] = []
-let sparks: Spark[] = []
-
 let raf = 0
 let running = false
-let loopToken = 0
+let token = 0
 
 let mode: 'idle' | 'drag' = 'idle'
 let grabIdx = -1
@@ -64,73 +71,59 @@ let pokeX = 0
 let pokeY = 0
 let coolUntil = 0
 let lastHaptic = 0
-
-let magX = 0
-let magY = 0
+let magX = cssW * 0.72
+let magY = cssH * 0.3
 let magGrab = false
 let magOx = 0
 let magOy = 0
 let magSx = 0
 let magSy = 0
+let cssDragging = false
+let cssLastX = 0
+let cssLastY = 0
+
+const fallbackStyle = computed(() => ({
+  background: props.result.color,
+  opacity: props.result.opaque ? 1 : 0.85,
+  transform: `translate(${cssOx.value}px, ${cssOy.value}px) scale(${cssStretch.value}, ${1 / Math.sqrt(cssStretch.value)})`,
+  boxShadow:
+    props.result.effect === 'glow' && props.lightsOff
+      ? `0 0 28px 10px ${props.result.color}`
+      : 'inset 0 -12px 24px rgba(0,0,0,0.12), 0 10px 24px rgba(2,136,209,0.25)',
+}))
 
 function physical() {
   return props.result.physical
 }
 
 function feel() {
-  if (physical() === 'runny') return { kRing: 0.1, kCenter: 0.05, kSkip: 0.045, poke: 30, follow: 0.72 }
-  if (physical() === 'firm') return { kRing: 0.28, kCenter: 0.22, kSkip: 0.16, poke: 11, follow: 0.3 }
-  return { kRing: 0.16, kCenter: 0.12, kSkip: 0.08, poke: 18, follow: 0.5 }
-}
-
-function hostEl(): HTMLElement | null {
-  const r = rootRef.value as HTMLElement | { $el?: HTMLElement } | null
-  if (!r) return null
-  if (r instanceof HTMLElement) return r
-  return (r.$el as HTMLElement) || (instance?.proxy?.$el as HTMLElement) || null
-}
-
-function measure() {
-  if (!canvas) return false
-  const rect = canvas.getBoundingClientRect()
-  const w = Math.max(200, Math.round(rect.width) || canvas.clientWidth || 320)
-  const h = Math.max(180, Math.round(rect.height) || canvas.clientHeight || 280)
-  dpr = Math.min(window.devicePixelRatio || 1, 2)
-  const needResize = canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr) || W !== w || H !== h
-  W = w
-  H = h
-  if (needResize) {
-    canvas.width = Math.round(W * dpr)
-    canvas.height = Math.round(H * dpr)
-  }
-  return true
+  if (physical() === 'runny') return { kRing: 0.1, kCenter: 0.05, kSkip: 0.04, poke: 28, follow: 0.7 }
+  if (physical() === 'firm') return { kRing: 0.26, kCenter: 0.2, kSkip: 0.14, poke: 10, follow: 0.28 }
+  return { kRing: 0.15, kCenter: 0.11, kSkip: 0.07, poke: 16, follow: 0.48 }
 }
 
 function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.hypot(a.x - b.x, a.y - b.y)
 }
 
-function buildHomePose() {
-  const cx = W * 0.5
-  const cy = H * 0.4
-  const rx = physical() === 'runny' ? W * 0.32 : physical() === 'firm' ? W * 0.26 : W * 0.29
-  const ry = physical() === 'runny' ? H * 0.16 : physical() === 'firm' ? H * 0.2 : H * 0.18
-
+function buildHome() {
+  const cx = cssW * 0.5
+  const cy = cssH * 0.42
+  const rx = physical() === 'runny' ? 96 : physical() === 'firm' ? 78 : 88
+  const ry = physical() === 'runny' ? 42 : physical() === 'firm' ? 54 : 48
   home = [{ x: cx, y: cy }]
   pts = [{ x: cx, y: cy, px: cx, py: cy }]
-
   for (let i = 0; i < RING; i++) {
     const a = (i / RING) * Math.PI * 2 - Math.PI / 2
     const bottom = Math.sin(a)
-    const flat = bottom > 0 ? 1 - bottom * 0.3 : 1 + (-bottom) * 0.08
-    const lobe = 1 + 0.1 * Math.sin(a * 3 + 0.4) + 0.05 * Math.sin(a * 5 - 0.7)
+    const flat = bottom > 0 ? 1 - bottom * 0.28 : 1 + (-bottom) * 0.08
+    const lobe = 1 + 0.1 * Math.sin(a * 3 + 0.4) + 0.05 * Math.sin(a * 5)
     const s = flat * lobe
     const x = cx + Math.cos(a) * rx * s
     const y = cy + Math.sin(a) * ry * s
     home.push({ x, y })
     pts.push({ x, y, px: x, py: y })
   }
-
   const f = feel()
   springs = []
   for (let i = 0; i < RING; i++) {
@@ -141,21 +134,8 @@ function buildHomePose() {
     springs.push({ a, b: c, len: dist(pts[a], pts[c]), k: f.kSkip })
     springs.push({ a: 0, b: a, len: dist(pts[0], pts[a]), k: f.kCenter })
   }
-
-  sparks = []
-  if (props.result.effect === 'glitter') {
-    for (let i = 0; i < 28; i++) {
-      sparks.push({
-        ang: Math.random() * Math.PI * 2,
-        r: 0.15 + Math.random() * 0.7,
-        size: 1.2 + Math.random() * 2.2,
-        phase: Math.random() * Math.PI * 2,
-      })
-    }
-  }
-
-  magX = W * 0.72
-  magY = H * 0.28
+  magX = cssW * 0.72
+  magY = cssH * 0.28
 }
 
 function snapHome() {
@@ -182,16 +162,15 @@ function applySprings() {
   }
 }
 
-function keepInView() {
-  const pad = 12
+function clamp() {
   for (const p of pts) {
-    p.x = Math.min(W - pad, Math.max(pad, p.x))
-    p.y = Math.min(H - pad, Math.max(pad, p.y))
+    p.x = Math.min(cssW - 12, Math.max(12, p.x))
+    p.y = Math.min(cssH - 12, Math.max(12, p.y))
   }
 }
 
 function integrate() {
-  if (!pts.length || !home.length) return
+  if (!pts.length) return
   const f = feel()
   const holding = mode === 'drag'
   const poking = pokeT > 0
@@ -203,8 +182,8 @@ function integrate() {
       const dx = pts[i].x - pokeX
       const dy = pts[i].y - pokeY
       const d = Math.hypot(dx, dy) || 1
-      if (d < Math.min(W, H) * 0.35) {
-        const w = (1 - d / (Math.min(W, H) * 0.35)) * f.poke * (pokeT / 12)
+      if (d < 90) {
+        const w = (1 - d / 90) * f.poke * (pokeT / 12)
         pts[i].x += (dx / d) * w
         pts[i].y += (dy / d) * w
       }
@@ -215,13 +194,11 @@ function integrate() {
     const dx = magX - pts[0].x
     const dy = magY - pts[0].y
     const d = Math.hypot(dx, dy)
-    const reach = Math.min(W, H) * 0.38
-    if (d < reach && d > 1) {
-      const pull = (physical() === 'firm' ? 0.04 : physical() === 'runny' ? 0.12 : 0.07) * (1 - d / reach)
+    if (d < 100 && d > 1) {
+      const pull = (physical() === 'firm' ? 0.04 : 0.1) * (1 - d / 100)
       for (let i = 0; i < pts.length; i++) {
-        const m = i === 0 ? 1 : 0.88
-        pts[i].x += dx * pull * m
-        pts[i].y += dy * pull * m
+        pts[i].x += dx * pull * (i === 0 ? 1 : 0.85)
+        pts[i].y += dy * pull * (i === 0 ? 1 : 0.85)
       }
     }
   }
@@ -234,15 +211,13 @@ function integrate() {
       const i = grabIdx - 1
       const prev = ((i - 1 + RING) % RING) + 1
       const next = ((i + 1) % RING) + 1
-      for (const n of [prev, next]) {
-        pts[n].x += (grabX - pts[n].x) * f.follow * 0.4
-        pts[n].y += (grabY - pts[n].y) * f.follow * 0.4
+      for (const n of [prev, next, 0]) {
+        pts[n].x += (grabX - pts[n].x) * f.follow * (n === 0 ? 0.22 : 0.38)
+        pts[n].y += (grabY - pts[n].y) * f.follow * (n === 0 ? 0.22 : 0.38)
       }
-      pts[0].x += (grabX - pts[0].x) * f.follow * 0.25
-      pts[0].y += (grabY - pts[0].y) * f.follow * 0.25
     }
     applySprings()
-    keepInView()
+    clamp()
     for (const p of pts) {
       p.px = p.x
       p.py = p.y
@@ -250,23 +225,20 @@ function integrate() {
     return
   }
 
-  // 闲置 / 冷却结束：必须回画面中心（按当前画布尺寸）
   if (!holding && !poking && !cooling) {
     snapHome()
     return
   }
 
-  // 冷却：快速移回中心
   for (let i = 0; i < pts.length; i++) {
-    pts[i].x += (home[i].x - pts[i].x) * 0.28
-    pts[i].y += (home[i].y - pts[i].y) * 0.28
+    pts[i].x += (home[i].x - pts[i].x) * 0.3
+    pts[i].y += (home[i].y - pts[i].y) * 0.3
     pts[i].px = pts[i].x
     pts[i].py = pts[i].y
   }
-  keepInView()
 }
 
-function hexToRgb(hex: string) {
+function hexRgb(hex: string) {
   const h = hex.replace('#', '')
   const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
   const n = parseInt(full, 16)
@@ -281,134 +253,104 @@ function pathBlob(c: CanvasRenderingContext2D) {
     const p1 = ring[i]
     const p2 = ring[(i + 1) % ring.length]
     const p3 = ring[(i + 2) % ring.length]
-    const bp1x = p1.x + (p2.x - p0.x) / 6
-    const bp1y = p1.y + (p2.y - p0.y) / 6
-    const bp2x = p2.x - (p3.x - p1.x) / 6
-    const bp2y = p2.y - (p3.y - p1.y) / 6
     if (i === 0) c.moveTo(p1.x, p1.y)
-    c.bezierCurveTo(bp1x, bp1y, bp2x, bp2y, p2.x, p2.y)
+    c.bezierCurveTo(
+      p1.x + (p2.x - p0.x) / 6,
+      p1.y + (p2.y - p0.y) / 6,
+      p2.x - (p3.x - p1.x) / 6,
+      p2.y - (p3.y - p1.y) / 6,
+      p2.x,
+      p2.y
+    )
   }
   c.closePath()
 }
 
 function draw() {
   if (!ctx || !pts.length) return
-  const c = ctx
-  c.setTransform(dpr, 0, 0, dpr, 0, 0)
-  c.clearRect(0, 0, W, H)
-
-  const cx = pts[0].x
-  const cy = pts[0].y
-  const col = hexToRgb(props.result.color)
-  const opaque = props.result.opaque
-  const glow = props.result.effect === 'glow' && props.lightsOff
-  const pearl = props.result.effect === 'pearl'
-
-  let minX = pts[1].x
-  let maxX = pts[1].x
-  let minY = pts[1].y
-  let maxY = pts[1].y
-  for (let i = 1; i < pts.length; i++) {
-    minX = Math.min(minX, pts[i].x)
-    maxX = Math.max(maxX, pts[i].x)
-    minY = Math.min(minY, pts[i].y)
-    maxY = Math.max(maxY, pts[i].y)
-  }
-
-  c.fillStyle = 'rgba(1,87,155,0.15)'
-  c.beginPath()
-  c.ellipse(cx, Math.min(H - 8, maxY + 8), Math.max(36, (maxX - minX) * 0.4), 8, 0, 0, Math.PI * 2)
-  c.fill()
-
-  if (glow) {
-    c.save()
-    c.shadowColor = `rgba(${col.r},${col.g},${col.b},0.95)`
-    c.shadowBlur = 36
-    pathBlob(c)
-    c.fillStyle = `rgba(${col.r},${col.g},${col.b},0.5)`
+  try {
+    const c = ctx
+    c.setTransform(dpr, 0, 0, dpr, 0, 0)
+    c.clearRect(0, 0, cssW, cssH)
+    const cx = pts[0].x
+    const cy = pts[0].y
+    const col = hexRgb(props.result.color)
+    let maxY = pts[1].y
+    let minY = pts[1].y
+    let minX = pts[1].x
+    let maxX = pts[1].x
+    for (let i = 1; i < pts.length; i++) {
+      maxY = Math.max(maxY, pts[i].y)
+      minY = Math.min(minY, pts[i].y)
+      minX = Math.min(minX, pts[i].x)
+      maxX = Math.max(maxX, pts[i].x)
+    }
+    c.fillStyle = 'rgba(1,87,155,0.14)'
+    c.beginPath()
+    c.ellipse(cx, Math.min(cssH - 8, maxY + 8), Math.max(40, (maxX - minX) * 0.4), 8, 0, 0, Math.PI * 2)
     c.fill()
-    c.restore()
-  }
 
-  pathBlob(c)
-  const bodyH = Math.max(36, maxY - minY)
-  const g = c.createRadialGradient(cx - 20, cy - bodyH * 0.35, 5, cx, cy + 8, Math.max(60, bodyH * 1.05))
-  if (opaque) {
-    g.addColorStop(0, 'rgba(255,255,255,0.58)')
-    g.addColorStop(0.35, `rgba(${col.r},${col.g},${col.b},0.98)`)
-    g.addColorStop(1, `rgba(${Math.max(0, col.r - 40)},${Math.max(0, col.g - 30)},${Math.max(0, col.b - 20)},1)`)
-  } else {
-    g.addColorStop(0, 'rgba(255,255,255,0.55)')
-    g.addColorStop(0.4, `rgba(${col.r},${col.g},${col.b},0.48)`)
-    g.addColorStop(1, `rgba(${col.r},${col.g},${col.b},0.82)`)
-  }
-  c.fillStyle = g
-  c.fill()
-
-  pathBlob(c)
-  c.strokeStyle = opaque ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.55)'
-  c.lineWidth = 2.2
-  c.stroke()
-  if (pearl) {
-    const ig = c.createLinearGradient(cx - 60, cy - 40, cx + 60, cy + 40)
-    ig.addColorStop(0, 'rgba(255,182,193,0.28)')
-    ig.addColorStop(0.5, 'rgba(129,212,250,0.2)')
-    ig.addColorStop(1, 'rgba(206,147,216,0.28)')
-    pathBlob(c)
-    c.fillStyle = ig
-    c.fill()
-  }
-
-  c.beginPath()
-  c.ellipse(cx - 18, cy - bodyH * 0.28, 26, 14, -0.4, 0, Math.PI * 2)
-  c.fillStyle = 'rgba(255,255,255,0.38)'
-  c.fill()
-
-  if (props.result.effect === 'glitter') {
-    const t = performance.now() / 1000
-    const rw = Math.max(24, (maxX - minX) * 0.36)
-    const rh = Math.max(14, (maxY - minY) * 0.36)
-    for (const s of sparks) {
-      const x = cx + Math.cos(s.ang + t * 0.12) * rw * s.r
-      const y = cy + Math.sin(s.ang + t * 0.12) * rh * s.r
-      const flash = 0.3 + 0.7 * Math.abs(Math.sin(t * 3 + s.phase))
+    if (props.result.effect === 'glow' && props.lightsOff) {
       c.save()
-      c.translate(x, y)
-      c.rotate(s.ang + t)
-      c.fillStyle = `rgba(255,255,255,${0.3 + flash * 0.6})`
-      c.fillRect(-s.size, -s.size * 0.3, s.size * 2, s.size * 0.6)
+      c.shadowColor = `rgba(${col.r},${col.g},${col.b},0.9)`
+      c.shadowBlur = 34
+      pathBlob(c)
+      c.fillStyle = `rgba(${col.r},${col.g},${col.b},0.5)`
+      c.fill()
       c.restore()
     }
-  }
 
-  if (props.result.effect === 'iron') {
-    c.font = `${Math.round(Math.min(W, H) * 0.12)}px sans-serif`
-    c.textAlign = 'center'
-    c.textBaseline = 'middle'
-    c.fillText('🧲', magX, magY)
+    pathBlob(c)
+    const bodyH = Math.max(40, maxY - minY)
+    const g = c.createRadialGradient(cx - 18, cy - bodyH * 0.3, 6, cx, cy + 6, Math.max(55, bodyH))
+    if (props.result.opaque) {
+      g.addColorStop(0, 'rgba(255,255,255,0.55)')
+      g.addColorStop(0.4, `rgba(${col.r},${col.g},${col.b},0.98)`)
+      g.addColorStop(1, `rgba(${Math.max(0, col.r - 40)},${Math.max(0, col.g - 28)},${Math.max(0, col.b - 18)},1)`)
+    } else {
+      g.addColorStop(0, 'rgba(255,255,255,0.5)')
+      g.addColorStop(0.45, `rgba(${col.r},${col.g},${col.b},0.5)`)
+      g.addColorStop(1, `rgba(${col.r},${col.g},${col.b},0.82)`)
+    }
+    c.fillStyle = g
+    c.fill()
+    pathBlob(c)
+    c.strokeStyle = 'rgba(255,255,255,0.45)'
+    c.lineWidth = 2
+    c.stroke()
+    c.beginPath()
+    c.ellipse(cx - 16, cy - bodyH * 0.25, 22, 12, -0.4, 0, Math.PI * 2)
+    c.fillStyle = 'rgba(255,255,255,0.35)'
+    c.fill()
+
+    if (props.result.effect === 'iron') {
+      c.font = '34px sans-serif'
+      c.textAlign = 'center'
+      c.textBaseline = 'middle'
+      c.fillText('🧲', magX, magY)
+    }
+  } catch {
+    canvasOk.value = false
   }
 }
 
-function loop(token: number) {
-  if (!running || token !== loopToken) return
-  if (measure() && home.length && (Math.abs(home[0].x - W * 0.5) > 1 || Math.abs(home[0].y - H * 0.4) > 1)) {
-    // 画布尺寸变化时重建静息位
-    const wasIdle = mode === 'idle' && pokeT <= 0 && performance.now() >= coolUntil
-    buildHomePose()
-    if (wasIdle) snapHome()
+function loop(t: number) {
+  if (!running || t !== token) return
+  try {
+    integrate()
+    draw()
+  } catch {
+    canvasOk.value = false
   }
-  integrate()
-  draw()
-  raf = requestAnimationFrame(() => loop(token))
+  raf = requestAnimationFrame(() => loop(t))
 }
 
 function localPos(e: TouchEvent | MouseEvent) {
-  if (!canvas) return { x: W / 2, y: H / 2 }
-  const rect = canvas.getBoundingClientRect()
+  const rect = (e.target as HTMLElement)?.getBoundingClientRect?.() || { left: 0, top: 0, width: cssW, height: cssH }
   const src = 'touches' in e && e.touches[0] ? e.touches[0] : (e as MouseEvent)
   return {
-    x: ((src.clientX - rect.left) / Math.max(1, rect.width)) * W,
-    y: ((src.clientY - rect.top) / Math.max(1, rect.height)) * H,
+    x: ((src.clientX - rect.left) / Math.max(1, rect.width)) * cssW,
+    y: ((src.clientY - rect.top) / Math.max(1, rect.height)) * cssH,
   }
 }
 
@@ -432,13 +374,10 @@ function haptic() {
   dragPulse(props.result.hardness)
 }
 
-function hitMagnet(x: number, y: number) {
-  return props.result.effect === 'iron' && Math.hypot(x - magX, y - magY) < Math.min(W, H) * 0.12
-}
-
 function onTouchStart(e: TouchEvent) {
+  if (!canvasOk.value || !pts.length) return
   const { x, y } = localPos(e)
-  if (hitMagnet(x, y)) {
+  if (props.result.effect === 'iron' && Math.hypot(x - magX, y - magY) < 36) {
     magGrab = true
     magSx = x
     magSy = y
@@ -448,23 +387,23 @@ function onTouchStart(e: TouchEvent) {
   }
   const { idx, d } = nearest(x, y)
   const toC = Math.hypot(pts[0].x - x, pts[0].y - y)
-  if (d < Math.min(W, H) * 0.14 || toC < Math.min(W, H) * 0.28) {
+  if (d < 42 || toC < 80) {
     mode = 'drag'
-    grabIdx = d < Math.min(W, H) * 0.14 ? idx : 0
+    grabIdx = d < 42 ? idx : 0
     grabX = x
     grabY = y
     haptic()
   } else {
     pokeX = x
     pokeY = y
-    pokeT = physical() === 'firm' ? 8 : physical() === 'runny' ? 16 : 12
+    pokeT = physical() === 'runny' ? 16 : 10
     lightTap()
     playSfx('tap')
-    haptic()
   }
 }
 
 function onTouchMove(e: TouchEvent) {
+  if (!canvasOk.value) return
   const { x, y } = localPos(e)
   if (magGrab) {
     magX = magOx + (x - magSx)
@@ -478,43 +417,21 @@ function onTouchMove(e: TouchEvent) {
 }
 
 function onTouchEnd() {
-  if (magGrab) {
-    magGrab = false
-    return
-  }
+  magGrab = false
   if (mode === 'drag') lightTap()
   mode = 'idle'
   grabIdx = -1
-  coolUntil = performance.now() + 220
+  coolUntil = performance.now() + 200
 }
 
 function onMouseDown(e: MouseEvent) {
+  if (!canvasOk.value || !pts.length) return
   const { x, y } = localPos(e)
-  if (hitMagnet(x, y)) {
-    magGrab = true
-    magSx = x
-    magSy = y
-    magOx = magX
-    magOy = magY
-    const move = (ev: MouseEvent) => {
-      const p = localPos(ev)
-      magX = magOx + (p.x - magSx)
-      magY = magOy + (p.y - magSy)
-    }
-    const up = () => {
-      magGrab = false
-      window.removeEventListener('mousemove', move)
-      window.removeEventListener('mouseup', up)
-    }
-    window.addEventListener('mousemove', move)
-    window.addEventListener('mouseup', up)
-    return
-  }
   const { idx, d } = nearest(x, y)
   const toC = Math.hypot(pts[0].x - x, pts[0].y - y)
-  if (d < Math.min(W, H) * 0.14 || toC < Math.min(W, H) * 0.28) {
+  if (d < 42 || toC < 80) {
     mode = 'drag'
-    grabIdx = d < Math.min(W, H) * 0.14 ? idx : 0
+    grabIdx = d < 42 ? idx : 0
     grabX = x
     grabY = y
   } else {
@@ -529,12 +446,11 @@ function onMouseDown(e: MouseEvent) {
     const p = localPos(ev)
     grabX = p.x
     grabY = p.y
-    haptic()
   }
   const up = () => {
     mode = 'idle'
     grabIdx = -1
-    coolUntil = performance.now() + 220
+    coolUntil = performance.now() + 200
     window.removeEventListener('mousemove', move)
     window.removeEventListener('mouseup', up)
   }
@@ -542,85 +458,151 @@ function onMouseDown(e: MouseEvent) {
   window.addEventListener('mouseup', up)
 }
 
-function bind() {
-  const el = typeof document !== 'undefined' ? (document.getElementById(canvasId) as HTMLCanvasElement | null) : null
-  if (el) canvas = el
-  else {
-    const host = hostEl()
-    canvas = host?.querySelector('canvas') as HTMLCanvasElement | null
-  }
-  if (!canvas) return false
-  ctx = canvas.getContext('2d')
-  if (!measure()) return false
-  buildHomePose()
-  snapHome()
-  return !!ctx
+function onCssTouchStart(e: TouchEvent) {
+  const t = e.touches[0]
+  cssDragging = true
+  cssLastX = t.clientX
+  cssLastY = t.clientY
+  cssStretch.value = physical() === 'firm' ? 1.08 : 1.25
+  lightTap()
+  playSfx('tap')
 }
 
-function start() {
+function onCssTouchMove(e: TouchEvent) {
+  if (!cssDragging) return
+  const t = e.touches[0]
+  cssOx.value += (t.clientX - cssLastX) * (physical() === 'firm' ? 0.35 : 0.8)
+  cssOy.value += (t.clientY - cssLastY) * (physical() === 'firm' ? 0.35 : 0.8)
+  cssLastX = t.clientX
+  cssLastY = t.clientY
+  cssStretch.value = Math.min(1.45, cssStretch.value + 0.01)
+  haptic()
+}
+
+function onCssTouchEnd() {
+  cssDragging = false
+  cssStretch.value = 1
+  cssOx.value = 0
+  cssOy.value = 0
+  lightTap()
+}
+
+function bindCanvas(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const finish = (node: any) => {
+      try {
+        if (!node || !node.getContext) {
+          resolve(false)
+          return
+        }
+        dpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2)
+        canvas = node
+        canvas.width = Math.round(cssW * dpr)
+        canvas.height = Math.round(cssH * dpr)
+        ctx = canvas.getContext('2d')
+        resolve(!!ctx)
+      } catch {
+        resolve(false)
+      }
+    }
+
+    try {
+      // H5：优先拿真实 DOM canvas
+      if (typeof document !== 'undefined') {
+        const el = document.getElementById('slimeSoftBody') as HTMLCanvasElement | null
+        if (el && typeof el.getContext === 'function') {
+          finish(el)
+          return
+        }
+      }
+      const q = uni.createSelectorQuery()
+      if (instance) q.in(instance as any)
+      q.select('#slimeSoftBody')
+        .fields({ node: true, size: true } as any)
+        .exec((res: any) => {
+          finish(res?.[0]?.node)
+        })
+    } catch {
+      resolve(false)
+    }
+  })
+}
+
+async function start() {
   stop()
   mode = 'idle'
   pokeT = 0
   coolUntil = 0
-  nextTick(() => {
-    const ok = bind()
-    if (!ok) {
-      setTimeout(() => {
-        if (bind()) {
-          running = true
-          loopToken += 1
-          loop(loopToken)
-        }
-      }, 80)
-      return
-    }
-    running = true
-    loopToken += 1
-    loop(loopToken)
-  })
+  buildHome()
+  snapHome()
+  await nextTick()
+  const ok = await bindCanvas()
+  canvasOk.value = ok
+  if (!ok) return
+  running = true
+  token += 1
+  loop(token)
 }
 
 function stop() {
   running = false
-  loopToken += 1
+  token += 1
   if (raf) cancelAnimationFrame(raf)
   raf = 0
 }
 
 watch(
-  () => [props.result.fingerprint, props.result.physical, props.result.effect, props.result.color],
-  () => start()
+  () => [props.result.fingerprint, props.result.physical, props.result.effect, props.result.color, props.lightsOff],
+  () => {
+    start().catch(() => {
+      canvasOk.value = false
+    })
+  }
 )
 
-onMounted(() => start())
+onMounted(() => {
+  start().catch(() => {
+    canvasOk.value = false
+  })
+})
 onBeforeUnmount(() => stop())
 </script>
 
 <style scoped lang="scss">
 .soft {
   position: relative;
-  width: 100%;
-  max-width: 640rpx;
-  height: 560rpx;
+  width: 300px;
+  height: 260px;
   margin: 0 auto;
   touch-action: none;
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 24rpx;
 }
 .soft__canvas {
+  position: absolute;
+  inset: 0;
   display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: 24rpx;
+  width: 300px;
+  height: 260px;
+}
+.fallback {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 180px;
+  height: 110px;
+  margin-left: -90px;
+  margin-top: -55px;
+  border-radius: 50% 50% 46% 54% / 62% 62% 40% 40%;
+  z-index: 1;
 }
 .soft__hint {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 10rpx;
+  bottom: 4px;
   text-align: center;
-  font-size: 22rpx;
+  font-size: 12px;
   color: #0277bd;
   pointer-events: none;
+  z-index: 2;
 }
 </style>

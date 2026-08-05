@@ -190,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { LEGEND_RECIPES } from '../../data/slime/recipes'
 import { computeResult } from '../../data/slime/mapping'
@@ -366,15 +366,10 @@ function startMix() {
 function finishMix() {
   mixing.value = false
   const outcome = recordMix({ base: base.value, borax: borax.value, additive: additive.value })
-  result.value = outcome.result
   refreshStore()
   playSfx(outcome.newlyUnlocked ? 'unlock' : 'correct')
 
-  if (outcome.newBadges.length) {
-    const names = outcome.newBadges.map((b) => BADGE_LABELS[b] || b).join('、')
-    uni.showToast({ title: `徽章：${names}`, icon: 'none' })
-  }
-
+  // 先弹贴士，再挂载软体，避免软体异常时贴士也被打断
   if (outcome.newlyUnlocked && outcome.legend && outcome.tipId) {
     tipTitle.value = outcome.legend.name
     tipBody.value = getTip(outcome.tipId)
@@ -382,6 +377,15 @@ function finishMix() {
   } else if (!outcome.legend) {
     uni.showToast({ title: '已存入我的创作', icon: 'none' })
   }
+
+  if (outcome.newBadges.length) {
+    const names = outcome.newBadges.map((b) => BADGE_LABELS[b] || b).join('、')
+    uni.showToast({ title: `徽章：${names}`, icon: 'none' })
+  }
+
+  nextTick(() => {
+    result.value = outcome.result
+  })
 }
 
 function toggleLights() {
