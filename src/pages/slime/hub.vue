@@ -80,40 +80,10 @@
           </view>
 
           <view v-else-if="result" class="result">
-            <view
-              class="blob-wrap"
-              @touchstart="onBlobStart"
-              @touchmove.stop.prevent="onBlobMove"
-              @touchend="onBlobEnd"
-              @click="poke"
-            >
-              <view
-                class="blob"
-                :class="[result.physical, { glow: result.effect === 'glow' && lightsOff, pearl: result.effect === 'pearl', glitter: result.effect === 'glitter' }]"
-                :style="blobStyle"
-              >
-                <view v-if="result.effect === 'glitter'" class="sparkles">
-                  <text v-for="i in 8" :key="i" class="spark">✦</text>
-                </view>
-                <text class="blob__face">{{ stretch > 1.2 ? '😮' : '😊' }}</text>
-              </view>
-            </view>
+            <SlimeSoftBody :result="result" :lights-off="lightsOff" />
 
             <view v-if="result.effect === 'glow'" class="light-btn" @click="toggleLights">
               <text>{{ lightsOff ? '开灯' : '关灯看夜光' }}</text>
-            </view>
-
-            <view v-if="result.effect === 'iron'" class="magnet-zone">
-              <view
-                class="magnet"
-                :style="{ transform: `translate(${magnet.x}px, ${magnet.y}px)` }"
-                @touchstart.stop="onMagStart"
-                @touchmove.stop.prevent="onMagMove"
-                @touchend.stop="onMagEnd"
-              >
-                🧲
-              </view>
-              <text class="magnet-tip">拖动磁铁靠近史莱姆</text>
             </view>
 
             <view class="tags">
@@ -123,7 +93,7 @@
               <text class="tag">流动性：{{ result.fluidity }}</text>
               <text class="tag">特效：{{ effectLabel }}</text>
             </view>
-            <text class="hint">拖拽 · 点击戳一戳 · 上下滑拉伸</text>
+            <text class="hint">戳一下会凹下去 · 按住拖会拉伸 · 松手看回弹</text>
           </view>
 
           <view v-else class="empty-bench">
@@ -220,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { LEGEND_RECIPES } from '../../data/slime/recipes'
 import { computeResult } from '../../data/slime/mapping'
@@ -236,9 +206,10 @@ import {
   type SlimeResult,
 } from '../../data/slime/types'
 import { loadSlimeStore, recordMix, BADGE_LABELS } from '../../engine/slimeStore'
-import { lightTap, stirPulse, dragPulse } from '../../utils/haptics'
+import { lightTap, stirPulse } from '../../utils/haptics'
 import { playSfx } from '../../utils/sfx'
 import { unlockSpeak } from '../../utils/tts'
+import SlimeSoftBody from '../../components/slime/SlimeSoftBody.vue'
 
 type TabId = 'lab' | 'recipes' | 'gallery'
 
@@ -263,11 +234,6 @@ const additive = ref<Additive>('none')
 const mixing = ref(false)
 const result = ref<SlimeResult | null>(null)
 const lightsOff = ref(false)
-const stretch = ref(1)
-const offset = reactive({ x: 0, y: 0 })
-const magnet = reactive({ x: 80, y: -20 })
-const drag = reactive({ active: false, startY: 0, lastX: 0, lastY: 0 })
-const magDrag = reactive({ active: false, ox: 0, oy: 0, sx: 0, sy: 0 })
 
 const unlocked = ref<string[]>([])
 const creations = ref<SlimeCreation[]>([])
@@ -291,17 +257,6 @@ const shareH = 480
 const previewColor = computed(() => computeResult({ base: base.value, borax: borax.value, additive: additive.value }).color)
 const effectLabel = computed(() => (result.value ? ADDITIVE_LABELS[result.value.effect] : '无'))
 const unlockedCount = computed(() => unlocked.value.length)
-
-const blobStyle = computed(() => {
-  if (!result.value) return {}
-  const sx = stretch.value
-  const sy = 1 / Math.sqrt(stretch.value)
-  return {
-    background: result.value.color,
-    opacity: result.value.opaque ? 1 : 0.82,
-    transform: `translate(${offset.x}px, ${offset.y}px) scale(${sx}, ${sy})`,
-  }
-})
 
 interface GalleryItem {
   key: string
@@ -395,9 +350,6 @@ function startMix() {
   mixing.value = true
   result.value = null
   lightsOff.value = false
-  offset.x = 0
-  offset.y = 0
-  stretch.value = 1
 
   const duration = 3500
   const start = Date.now()
@@ -432,80 +384,9 @@ function finishMix() {
   }
 }
 
-function poke() {
-  if (!result.value || drag.active) return
-  lightTap()
-  playSfx('tap')
-  stretch.value = result.value.physical === 'firm' ? 1.08 : result.value.physical === 'runny' ? 1.35 : 1.2
-  setTimeout(() => {
-    stretch.value = 1
-  }, 180)
-}
-
-function onBlobStart(e: TouchEvent) {
-  if (!result.value) return
-  const t = e.touches[0]
-  drag.active = true
-  drag.startY = t.clientY
-  drag.lastX = t.clientX
-  drag.lastY = t.clientY
-  dragPulse(result.value.hardness)
-}
-
-function onBlobMove(e: TouchEvent) {
-  if (!drag.active || !result.value) return
-  const t = e.touches[0]
-  const dx = t.clientX - drag.lastX
-  const dy = t.clientY - drag.lastY
-  const resist = result.value.physical === 'firm' ? 0.35 : result.value.physical === 'runny' ? 1 : 0.65
-  offset.x += dx * resist
-  offset.y += dy * resist
-  const pull = 1 + Math.min(0.6, Math.abs(t.clientY - drag.startY) / 220)
-  stretch.value = result.value.physical === 'firm' ? Math.min(pull, 1.15) : pull
-  drag.lastX = t.clientX
-  drag.lastY = t.clientY
-}
-
-function onBlobEnd() {
-  drag.active = false
-  stretch.value = 1
-  if (result.value?.physical === 'runny') {
-    // soft settle
-  } else {
-    offset.x *= 0.4
-    offset.y *= 0.4
-  }
-}
-
 function toggleLights() {
   lightTap()
   lightsOff.value = !lightsOff.value
-}
-
-function onMagStart(e: TouchEvent) {
-  const t = e.touches[0]
-  magDrag.active = true
-  magDrag.sx = t.clientX
-  magDrag.sy = t.clientY
-  magDrag.ox = magnet.x
-  magDrag.oy = magnet.y
-}
-
-function onMagMove(e: TouchEvent) {
-  if (!magDrag.active || !result.value) return
-  const t = e.touches[0]
-  magnet.x = magDrag.ox + (t.clientX - magDrag.sx)
-  magnet.y = magDrag.oy + (t.clientY - magDrag.sy)
-  const dist = Math.hypot(magnet.x - offset.x, magnet.y - offset.y)
-  if (dist < 90) {
-    const pull = result.value.physical === 'firm' ? 0.08 : result.value.physical === 'runny' ? 0.22 : 0.14
-    offset.x += (magnet.x - offset.x) * pull
-    offset.y += (magnet.y - offset.y) * pull
-  }
-}
-
-function onMagEnd() {
-  magDrag.active = false
 }
 
 function openLegend(r: LegendRecipe) {
@@ -901,125 +782,20 @@ onShow(refreshStore)
     opacity: 0;
   }
 }
-.blob-wrap {
-  width: 280rpx;
-  height: 280rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  touch-action: none;
-}
-.blob {
-  width: 180rpx;
-  height: 160rpx;
-  border-radius: 50% 50% 46% 54% / 60% 60% 40% 40%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  box-shadow: inset 0 -20rpx 40rpx rgba(0, 0, 0, 0.12), 0 16rpx 40rpx rgba(2, 136, 209, 0.25);
-  transition: border-radius 0.2s;
-}
-.blob.runny {
-  border-radius: 45% 55% 60% 40% / 50% 45% 55% 50%;
-  height: 140rpx;
-}
-.blob.firm {
-  border-radius: 48%;
-  height: 170rpx;
-  box-shadow: inset 0 -10rpx 20rpx rgba(0, 0, 0, 0.18), 0 10rpx 24rpx rgba(2, 136, 209, 0.3);
-}
-.blob.glow {
-  box-shadow: 0 0 40rpx 12rpx rgba(105, 240, 174, 0.85), 0 0 80rpx rgba(105, 240, 174, 0.4);
-}
-.blob.pearl {
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.55), transparent 40%, rgba(186, 104, 200, 0.35), transparent 70%, rgba(255, 255, 255, 0.4)) !important;
-}
-.blob.glitter .sparkles {
-  position: absolute;
-  inset: 0;
-}
-.spark {
-  position: absolute;
-  font-size: 18rpx;
-  color: #fff;
-  animation: twinkle 1.2s ease-in-out infinite;
-}
-.spark:nth-child(1) {
-  left: 20%;
-  top: 30%;
-}
-.spark:nth-child(2) {
-  left: 60%;
-  top: 25%;
-  animation-delay: 0.2s;
-}
-.spark:nth-child(3) {
-  left: 40%;
-  top: 55%;
-  animation-delay: 0.4s;
-}
-.spark:nth-child(4) {
-  left: 70%;
-  top: 60%;
-  animation-delay: 0.1s;
-}
-.spark:nth-child(5) {
-  left: 25%;
-  top: 65%;
-  animation-delay: 0.3s;
-}
-.spark:nth-child(6) {
-  left: 55%;
-  top: 40%;
-  animation-delay: 0.5s;
-}
-.spark:nth-child(7) {
-  left: 35%;
-  top: 20%;
-  animation-delay: 0.15s;
-}
-.spark:nth-child(8) {
-  left: 75%;
-  top: 45%;
-  animation-delay: 0.35s;
-}
-@keyframes twinkle {
-  50% {
-    opacity: 0.2;
-    transform: scale(0.8);
-  }
-}
-.blob__face {
-  font-size: 44rpx;
-  position: relative;
-  z-index: 1;
-}
-.light-btn,
-.magnet-tip {
+.light-btn {
   margin-top: 12rpx;
   font-size: 24rpx;
   color: #0277bd;
-}
-.light-btn {
   background: #fff;
   border: 2rpx solid #4fc3f7;
   border-radius: 999rpx;
   padding: 10rpx 24rpx;
 }
-.magnet-zone {
-  position: relative;
+.result {
   width: 100%;
-  height: 80rpx;
-  margin-top: 8rpx;
-}
-.magnet {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  font-size: 48rpx;
-  z-index: 2;
-  touch-action: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .tags {
   display: flex;
