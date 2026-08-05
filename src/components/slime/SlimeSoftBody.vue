@@ -115,21 +115,18 @@ function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
 /** 扁坨 + 不规则起伏，避免正圆球 */
 function initMesh() {
   const cx = cssW / 2
-  // 略偏上，给底部阴影留空，避免沉到画布外
-  const cy = cssH * 0.52
-  // 宽扁：稀软更摊，硬实略厚
-  const rx = physical() === 'runny' ? 108 : physical() === 'firm' ? 88 : 98
-  const ry = physical() === 'runny' ? 48 : physical() === 'firm' ? 62 : 54
+  // 明确放在画布中上部，避免“看起来沉底”
+  const cy = cssH * 0.42
+  const rx = physical() === 'runny' ? 100 : physical() === 'firm' ? 82 : 92
+  const ry = physical() === 'runny' ? 44 : physical() === 'firm' ? 56 : 50
 
-  pts = [{ x: cx, y: cy + ry * 0.12, px: cx, py: cy + ry * 0.12 }]
-  rest = [{ x: pts[0].x, y: pts[0].y }]
+  pts = [{ x: cx, y: cy, px: cx, py: cy }]
+  rest = [{ x: cx, y: cy }]
 
   for (let i = 0; i < RING; i++) {
-    const t = i / RING
-    const a = t * Math.PI * 2 - Math.PI / 2
-    // 底部更平、顶部略鼓；加少量花瓣起伏
-    const bottom = Math.sin(a) // +1 偏下
-    const flat = bottom > 0 ? 1 - bottom * 0.22 : 1 + (-bottom) * 0.06
+    const a = (i / RING) * Math.PI * 2 - Math.PI / 2
+    const bottom = Math.sin(a)
+    const flat = bottom > 0 ? 1 - bottom * 0.28 : 1 + (-bottom) * 0.08
     const lobe = 1 + 0.1 * Math.sin(a * 3 + 0.4) + 0.06 * Math.sin(a * 5 - 0.8)
     const squash = flat * lobe
     const x = cx + Math.cos(a) * rx * squash
@@ -267,36 +264,24 @@ function integrate() {
   }
 
   if (idle) {
-    // 闲置：强力回到正中间静息扁坨，并清速度（不再沉底）
-    const k = p.restore
+    // 闲置：直接贴回静息坐标（不再跑弹簧，杜绝沉底）
     for (let i = 0; i < pts.length; i++) {
-      pts[i].x += (rest[i].x - pts[i].x) * k
-      pts[i].y += (rest[i].y - pts[i].y) * k
+      pts[i].x = rest[i].x
+      pts[i].y = rest[i].y
     }
-    applySprings()
-    softClamp()
     freezeVelocity()
     return
   }
 
-  // 松手后的短暂冷却：边回中边保留一点惯性
-  const blend = p.restore * 0.55
+  // 松手冷却：快速回中，不做触底钉死
+  const blend = Math.min(0.35, p.restore)
   for (let i = 0; i < pts.length; i++) {
     pts[i].x += (rest[i].x - pts[i].x) * blend
     pts[i].y += (rest[i].y - pts[i].y) * blend
   }
-  for (let iter = 0; iter < 3; iter++) applySprings()
-
-  for (let i = 0; i < pts.length; i++) {
-    const pt = pts[i]
-    const vx = (pt.x - pt.px) * p.damp
-    const vy = (pt.y - pt.py) * p.damp
-    pt.px = pt.x
-    pt.py = pt.y
-    pt.x += vx
-    pt.y += vy
-  }
+  applySprings()
   softClamp()
+  freezeVelocity()
 }
 
 function smoothRingPath(c: CanvasRenderingContext2D) {
@@ -518,8 +503,7 @@ function onTouchMove(e: TouchEvent) {
 
 function onTouchEnd() {
   if (mode === 'drag') lightTap()
-  // 短冷却后强回中；按住不动时已在 integrate 里冻住
-  markInteract(380)
+  markInteract(180)
   mode = 'idle'
   grabIdx = -1
 }
@@ -547,7 +531,7 @@ function onMouseDown(e: MouseEvent) {
     maybeHaptic()
   }
   const up = () => {
-    markInteract(380)
+    markInteract(180)
     mode = 'idle'
     grabIdx = -1
     window.removeEventListener('mousemove', move)
@@ -626,6 +610,10 @@ function bindDom() {
 
 function start() {
   stop()
+  interactUntil = 0
+  mode = 'idle'
+  grabIdx = -1
+  pokeT = 0
   initMesh()
   nextTick(() => {
     if (!bindDom()) {
@@ -644,8 +632,10 @@ function start() {
 
 function stop() {
   running = false
-  if (raf) cancelAnimationFrame(raf)
-  raf = 0
+  if (raf) {
+    cancelAnimationFrame(raf)
+    raf = 0
+  }
 }
 
 watch(
