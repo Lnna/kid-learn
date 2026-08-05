@@ -236,6 +236,7 @@ const PAGE_TITLES: Record<ThemeId, string> = {
   town: '小镇建筑卡册',
   princess: '公主卡册',
   vehicle: '工程车队卡册',
+  slime: '史莱姆配方图鉴',
 }
 
 const LOCKED_NAMES: Record<ThemeId, string> = {
@@ -244,6 +245,7 @@ const LOCKED_NAMES: Record<ThemeId, string> = {
   town: '未知建筑',
   princess: '神秘公主',
   vehicle: '未知车辆',
+  slime: '未知配方',
 }
 
 const isGem = computed(() => theme.value === 'gem')
@@ -364,7 +366,11 @@ function goBack() {
 
 onLoad((q) => {
   const t = q?.theme as ThemeId | undefined
-  if (t && ['gem', 'dino', 'town', 'princess', 'vehicle'].includes(t)) {
+  if (t && ['gem', 'dino', 'town', 'princess', 'vehicle', 'slime'].includes(t)) {
+    if (t === 'slime') {
+      uni.redirectTo({ url: '/pages/slime/hub?tab=recipes' })
+      return
+    }
     theme.value = t
   }
 })

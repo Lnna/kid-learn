@@ -41,6 +41,11 @@
           <view class="coming__chip">🚀 宇宙空间站</view>
         </view>
       </view>
+
+      <view v-if="slimeBadges > 0" class="slime-badge">
+        <text class="slime-badge__icon">🧪</text>
+        <text class="slime-badge__text">史莱姆科学徽章 × {{ slimeBadges }}</text>
+      </view>
     </view>
   </view>
 </template>
@@ -51,6 +56,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { THEMES } from '../../engine/catalog'
 import { loadProgress } from '../../engine/progress'
 import { canEnter, chooseTheme, shuttleUnlocked, themeTotalStars, loadThemeLock, SHUTTLE_STARS } from '../../engine/themeLock'
+import { badgeCount } from '../../engine/slimeStore'
 import type { ThemeId } from '../../engine/types'
 import { unlockSpeak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
@@ -60,6 +66,7 @@ const totalStars = ref(0)
 const shuttle = ref(false)
 const chosen = ref<ThemeId | undefined>(undefined)
 const subjectStars = ref<Record<string, number>>({})
+const slimeBadges = ref(0)
 
 const shuttleTip = computed(() =>
   shuttle.value ? '时空穿梭已开启' : `集满 ${SHUTTLE_STARS} 星开启时空穿梭`
@@ -88,6 +95,7 @@ function refresh() {
   totalStars.value = themeTotalStars()
   shuttle.value = shuttleUnlocked()
   chosen.value = loadThemeLock().chosen
+  slimeBadges.value = badgeCount()
 }
 
 function enter(id: ThemeId) {
@@ -98,6 +106,10 @@ function enter(id: ThemeId) {
     return
   }
   playSfx('unlock')
+  if (id === 'slime') {
+    uni.navigateTo({ url: '/pages/slime/hub' })
+    return
+  }
   chooseTheme(id)
   uni.navigateTo({ url: `/pages/subject/map?id=${id}` })
 }
@@ -279,5 +291,24 @@ onShow(refresh)
   color: var(--color-ink-soft);
   box-shadow: var(--shadow-soft);
   opacity: 0.7;
+}
+.slime-badge {
+  margin-top: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  background: linear-gradient(135deg, #E1F5FE, #fff);
+  border: 2rpx solid #0288D1;
+  border-radius: 999rpx;
+  padding: 14rpx 28rpx;
+}
+.slime-badge__icon {
+  font-size: 28rpx;
+}
+.slime-badge__text {
+  font-size: 24rpx;
+  color: #0277BD;
+  font-weight: 700;
 }
 </style>

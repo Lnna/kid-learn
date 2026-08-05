@@ -12,9 +12,10 @@ export type SubjectId =
   | 'town'
   | 'princess'
   | 'vehicle'
+  | 'slime'
 
 /** 兴趣主题（基地里的门） */
-export type ThemeId = 'gem' | 'dino' | 'town' | 'princess' | 'vehicle'
+export type ThemeId = 'gem' | 'dino' | 'town' | 'princess' | 'vehicle' | 'slime'
 
 export type ActivityType =
   | 'tap-read'

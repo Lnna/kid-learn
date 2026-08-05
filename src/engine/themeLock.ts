@@ -32,16 +32,18 @@ export function shuttleUnlocked(): boolean {
   return themeTotalStars() >= SHUTTLE_STARS
 }
 
-/** 能否进入某扇门 */
+/** 能否进入某扇门（史莱姆主题豁免锁定） */
 export function canEnter(theme: ThemeId): boolean {
+  if (theme === 'slime') return true
   const { chosen } = loadThemeLock()
   if (!chosen) return true
   if (chosen === theme) return true
   return shuttleUnlocked()
 }
 
-/** 首次选择并锁定一扇门 */
+/** 首次选择并锁定一扇门（史莱姆不参与锁定） */
 export function chooseTheme(theme: ThemeId): void {
+  if (theme === 'slime') return
   const s = loadThemeLock()
   if (!s.chosen) {
     s.chosen = theme

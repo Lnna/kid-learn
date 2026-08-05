@@ -3,10 +3,10 @@ import type { CollectionState, ThemeId } from './types'
 
 const KEY = 'collection'
 
-const THEME_KEYS: ThemeId[] = ['gem', 'dino', 'town', 'princess', 'vehicle']
+const THEME_KEYS: ThemeId[] = ['gem', 'dino', 'town', 'princess', 'vehicle', 'slime']
 
 function defaultState(): CollectionState {
-  return { unlocked: { gem: [], dino: [], town: [], princess: [], vehicle: [] } }
+  return { unlocked: { gem: [], dino: [], town: [], princess: [], vehicle: [], slime: [] } }
 }
 
 export function loadCollection(): CollectionState {

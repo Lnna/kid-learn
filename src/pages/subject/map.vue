@@ -93,9 +93,12 @@ function openLevel(levelId: string) {
 }
 
 function goCollection() {
-  if (themeId.value) {
-    uni.navigateTo({ url: `/pages/theme/collection?theme=${themeId.value}` })
+  if (!themeId.value) return
+  if (themeId.value === 'slime') {
+    uni.navigateTo({ url: '/pages/slime/hub?tab=recipes' })
+    return
   }
+  uni.navigateTo({ url: `/pages/theme/collection?theme=${themeId.value}` })
 }
 
 function goBack() {

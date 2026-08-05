@@ -55,6 +55,13 @@
         "navigationStyle": "custom",
         "navigationBarTitleText": "打怪兽"
       }
+    },
+    {
+      "path": "pages/slime/hub",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "史莱姆材料科学家"
+      }
     }
   ],
   "globalStyle": {

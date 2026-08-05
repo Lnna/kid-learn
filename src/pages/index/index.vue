@@ -39,7 +39,7 @@
         </view>
         <view class="theme-entry__info">
           <text class="theme-entry__name">主题基地</text>
-          <text class="theme-entry__desc">宝石矿洞 · 恐龙营地，选你喜欢的去探险</text>
+          <text class="theme-entry__desc">宝石 · 恐龙 · 史莱姆实验室，选你喜欢的去探险</text>
         </view>
         <text class="theme-entry__arrow">→</text>
       </view>

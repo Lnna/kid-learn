@@ -21,6 +21,7 @@ function defaultProgress(): AppProgress {
       town: emptySubject(),
       princess: emptySubject(),
       vehicle: emptySubject(),
+      slime: emptySubject(),
     },
     settings: { ttsEnabled: true, sfxEnabled: true },
   }

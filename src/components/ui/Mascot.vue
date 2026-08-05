@@ -110,6 +110,19 @@
       <ellipse cx="44" cy="76" rx="6" ry="4" fill="#FFB6C1" opacity="0.8"/>
       <ellipse cx="76" cy="76" rx="6" ry="4" fill="#FFB6C1" opacity="0.8"/>
     </svg>
+    <svg v-else-if="name === 'slime'" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="60" cy="78" rx="40" ry="28" fill="#4FC3F7" stroke="#2c2416" stroke-width="3"/>
+      <path d="M24 70 Q30 36 60 32 Q90 36 96 70 Q78 88 60 90 Q42 88 24 70 Z" fill="#81D4FA" stroke="#2c2416" stroke-width="3" stroke-linejoin="round"/>
+      <ellipse cx="46" cy="58" rx="10" ry="14" fill="#fff" stroke="#2c2416" stroke-width="2.5"/>
+      <ellipse cx="74" cy="58" rx="10" ry="14" fill="#fff" stroke="#2c2416" stroke-width="2.5"/>
+      <circle cx="48" cy="60" r="4" fill="#2c2416"/>
+      <circle cx="76" cy="60" r="4" fill="#2c2416"/>
+      <circle cx="50" cy="58" r="1.5" fill="#fff"/>
+      <circle cx="78" cy="58" r="1.5" fill="#fff"/>
+      <path d="M50 74 Q60 82 70 74" fill="none" stroke="#2c2416" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="38" cy="48" r="4" fill="#E1F5FE" opacity="0.9"/>
+      <circle cx="70" cy="42" r="3" fill="#E1F5FE" opacity="0.8"/>
+    </svg>
     <svg v-else-if="name === 'vehicle'" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="60" cy="74" rx="36" ry="32" fill="#D4A574" stroke="#2c2416" stroke-width="3"/>
       <path d="M26 60 Q26 28 60 28 Q94 28 94 60 L26 60 Z" fill="#FFC84A" stroke="#2c2416" stroke-width="3" stroke-linejoin="round"/>
@@ -143,7 +156,7 @@
 <script setup lang="ts">
 withDefaults(
   defineProps<{
-    name: 'panda' | 'fox' | 'owl' | 'rabbit' | 'bear' | 'mole' | 'dino' | 'town' | 'princess' | 'vehicle'
+    name: 'panda' | 'fox' | 'owl' | 'rabbit' | 'bear' | 'mole' | 'dino' | 'town' | 'princess' | 'vehicle' | 'slime'
     size?: number
   }>(),
   { size: 160 }
