@@ -40,9 +40,9 @@ const props = withDefaults(
   { lightsOff: false }
 )
 
-const RING = 18
+const RING = 20
 const cssW = 320
-const cssH = 300
+const cssH = 280
 
 type Pt = { x: number; y: number; px: number; py: number }
 type Spring = { a: number; b: number; rest: number; k: number }
@@ -61,10 +61,13 @@ let magCanvas: HTMLCanvasElement | null = null
 let ctx: CanvasRenderingContext2D | null = null
 let magCtx: CanvasRenderingContext2D | null = null
 let pts: Pt[] = []
+/** 静息外形（扁坨），闲置时缓慢回弹到此，避免重力沉底 */
+let rest: { x: number; y: number }[] = []
 let springs: Spring[] = []
 let sparks: Spark[] = []
 let raf = 0
 let running = false
+let interactUntil = 0
 
 let mode: 'idle' | 'poke' | 'drag' = 'idle'
 let grabIdx = -1
@@ -76,7 +79,7 @@ let pokeT = 0
 let lastHaptic = 0
 
 let magX = cssW * 0.72
-let magY = cssH * 0.22
+let magY = cssH * 0.28
 let magGrab = false
 let magOx = 0
 let magOy = 0
@@ -95,30 +98,46 @@ function physical() {
 }
 
 function params() {
+  // 无持续重力；用手感参数区分形变与回弹
   if (physical() === 'runny') {
-    return { kRing: 0.09, kCenter: 0.048, kSkip: 0.042, damp: 0.965, gravity: 0.14, pokeForce: 26, dragFollow: 0.58 }
+    return { kRing: 0.11, kCenter: 0.055, kSkip: 0.05, damp: 0.94, pokeForce: 28, dragFollow: 0.62, restore: 0.018 }
   }
   if (physical() === 'firm') {
-    return { kRing: 0.3, kCenter: 0.24, kSkip: 0.17, damp: 0.87, gravity: 0.02, pokeForce: 9, dragFollow: 0.2 }
+    return { kRing: 0.32, kCenter: 0.26, kSkip: 0.18, damp: 0.86, pokeForce: 10, dragFollow: 0.22, restore: 0.055 }
   }
-  return { kRing: 0.17, kCenter: 0.125, kSkip: 0.085, damp: 0.915, gravity: 0.055, pokeForce: 16, dragFollow: 0.4 }
+  return { kRing: 0.18, kCenter: 0.13, kSkip: 0.09, damp: 0.9, pokeForce: 18, dragFollow: 0.42, restore: 0.032 }
 }
 
-function dist(a: Pt, b: Pt) {
+function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.hypot(a.x - b.x, a.y - b.y)
 }
 
+/** 扁坨 + 不规则起伏，避免正圆球 */
 function initMesh() {
   const cx = cssW / 2
-  const cy = cssH / 2 + 6
-  const radius = physical() === 'runny' ? 80 : physical() === 'firm' ? 68 : 74
-  pts = [{ x: cx, y: cy, px: cx, py: cy }]
+  // 略偏上，给底部阴影留空，避免沉到画布外
+  const cy = cssH * 0.52
+  // 宽扁：稀软更摊，硬实略厚
+  const rx = physical() === 'runny' ? 108 : physical() === 'firm' ? 88 : 98
+  const ry = physical() === 'runny' ? 48 : physical() === 'firm' ? 62 : 54
+
+  pts = [{ x: cx, y: cy + ry * 0.12, px: cx, py: cy + ry * 0.12 }]
+  rest = [{ x: pts[0].x, y: pts[0].y }]
+
   for (let i = 0; i < RING; i++) {
-    const a = (i / RING) * Math.PI * 2 - Math.PI / 2
-    const x = cx + Math.cos(a) * radius
-    const y = cy + Math.sin(a) * radius * (physical() === 'runny' ? 0.86 : 0.94)
+    const t = i / RING
+    const a = t * Math.PI * 2 - Math.PI / 2
+    // 底部更平、顶部略鼓；加少量花瓣起伏
+    const bottom = Math.sin(a) // +1 偏下
+    const flat = bottom > 0 ? 1 - bottom * 0.22 : 1 + (-bottom) * 0.06
+    const lobe = 1 + 0.1 * Math.sin(a * 3 + 0.4) + 0.06 * Math.sin(a * 5 - 0.8)
+    const squash = flat * lobe
+    const x = cx + Math.cos(a) * rx * squash
+    const y = cy + Math.sin(a) * ry * squash
     pts.push({ x, y, px: x, py: y })
+    rest.push({ x, y })
   }
+
   const p = params()
   springs = []
   for (let i = 0; i < RING; i++) {
@@ -129,6 +148,7 @@ function initMesh() {
     springs.push({ a, b: c, rest: dist(pts[a], pts[c]), k: p.kSkip })
     springs.push({ a: 0, b: a, rest: dist(pts[0], pts[a]), k: p.kCenter })
   }
+
   sparks = []
   if (props.result.effect === 'glitter') {
     for (let i = 0; i < 30; i++) {
@@ -159,12 +179,18 @@ function applySprings() {
   }
 }
 
+function markInteract(ms = 900) {
+  interactUntil = performance.now() + ms
+}
+
 function integrate() {
   const p = params()
-  const ground = cssH - 18
-  const left = 14
-  const right = cssW - 14
-  const top = 14
+  const interacting = mode !== 'idle' || pokeT > 0 || performance.now() < interactUntil
+  // 地面在静息坨下方留裕量，只作安全夹紧，不当“永久落点”
+  const ground = cssH - 8
+  const left = 10
+  const right = cssW - 10
+  const top = 8
 
   if (pokeT > 0) {
     pokeT -= 1
@@ -172,8 +198,8 @@ function integrate() {
       const dx = pts[i].x - pokeX
       const dy = pts[i].y - pokeY
       const d = Math.hypot(dx, dy) || 1
-      if (d < 95) {
-        const w = (1 - d / 95) * p.pokeForce * (pokeT / 12)
+      if (d < 100) {
+        const w = (1 - d / 100) * p.pokeForce * (pokeT / 12)
         pts[i].x += (dx / d) * w
         pts[i].y += (dy / d) * w
       }
@@ -191,6 +217,7 @@ function integrate() {
         pts[i].x += dx * pull * m
         pts[i].y += dy * pull * m
       }
+      markInteract(400)
     }
   }
 
@@ -203,11 +230,20 @@ function integrate() {
       const prev = ((i - 1 + RING) % RING) + 1
       const next = ((i + 1) % RING) + 1
       for (const n of [prev, next]) {
-        pts[n].x += (grabX - pts[n].x) * p.dragFollow * 0.38
-        pts[n].y += (grabY - pts[n].y) * p.dragFollow * 0.38
+        pts[n].x += (grabX - pts[n].x) * p.dragFollow * 0.4
+        pts[n].y += (grabY - pts[n].y) * p.dragFollow * 0.4
       }
-      pts[0].x += (grabX - pts[0].x) * p.dragFollow * 0.22
-      pts[0].y += (grabY - pts[0].y) * p.dragFollow * 0.22
+      pts[0].x += (grabX - pts[0].x) * p.dragFollow * 0.24
+      pts[0].y += (grabY - pts[0].y) * p.dragFollow * 0.24
+    }
+  }
+
+  // 闲置：拉回扁坨静息形（根因修复：不再每帧重力沉底）
+  if (!interacting) {
+    const k = p.restore
+    for (let i = 0; i < pts.length; i++) {
+      pts[i].x += (rest[i].x - pts[i].x) * k
+      pts[i].y += (rest[i].y - pts[i].y) * k
     }
   }
 
@@ -215,29 +251,27 @@ function integrate() {
 
   for (let i = 0; i < pts.length; i++) {
     const pt = pts[i]
-    let vx = (pt.x - pt.px) * p.damp
-    let vy = (pt.y - pt.py) * p.damp
-    if (i !== 0) vy += p.gravity
+    const vx = (pt.x - pt.px) * p.damp
+    const vy = (pt.y - pt.py) * p.damp
     pt.px = pt.x
     pt.py = pt.y
     pt.x += vx
     pt.y += vy
     if (pt.x < left) {
       pt.x = left
-      pt.px = left + vx * 0.25
+      pt.px = left + vx * 0.2
     }
     if (pt.x > right) {
       pt.x = right
-      pt.px = right + vx * 0.25
+      pt.px = right + vx * 0.2
     }
     if (pt.y < top) {
       pt.y = top
-      pt.py = top + vy * 0.25
+      pt.py = top + vy * 0.2
     }
     if (pt.y > ground) {
       pt.y = ground
-      pt.py = ground + vy * 0.12
-      if (physical() === 'runny' && i > 0) pt.x += (pts[0].x - pt.x) * 0.012
+      pt.py = ground + vy * 0.15
     }
   }
 }
@@ -282,7 +316,19 @@ function draw() {
 
   c.fillStyle = 'rgba(1, 87, 155, 0.16)'
   c.beginPath()
-  c.ellipse(cx, cssH - 12, 82, 11, 0, 0, Math.PI * 2)
+  // 阴影贴在胶体底部，而不是画布最底（避免“坨在屏幕外”的观感）
+  let minY = pts[1].y
+  let maxY = pts[1].y
+  let minX = pts[1].x
+  let maxX = pts[1].x
+  for (let i = 1; i < pts.length; i++) {
+    minY = Math.min(minY, pts[i].y)
+    maxY = Math.max(maxY, pts[i].y)
+    minX = Math.min(minX, pts[i].x)
+    maxX = Math.max(maxX, pts[i].x)
+  }
+  const shadowW = Math.max(40, (maxX - minX) * 0.42)
+  c.ellipse(cx, Math.min(cssH - 10, maxY + 10), shadowW, 9, 0, 0, Math.PI * 2)
   c.fill()
 
   if (glow) {
@@ -296,7 +342,8 @@ function draw() {
   }
 
   smoothRingPath(c)
-  const g = c.createRadialGradient(cx - 24, cy - 30, 6, cx, cy + 12, 100)
+  const bodyH = Math.max(40, maxY - minY)
+  const g = c.createRadialGradient(cx - 24, cy - bodyH * 0.35, 6, cx, cy + bodyH * 0.15, Math.max(70, bodyH * 1.1))
   if (opaque) {
     g.addColorStop(0, 'rgba(255,255,255,0.6)')
     g.addColorStop(0.32, `rgba(${col.r},${col.g},${col.b},0.98)`)
@@ -338,10 +385,11 @@ function draw() {
 
   if (props.result.effect === 'glitter') {
     const t = performance.now() / 1000
+    const rw = Math.max(30, (maxX - minX) * 0.38)
+    const rh = Math.max(18, (maxY - minY) * 0.38)
     for (const s of sparks) {
-      const rr = 52 * s.r
-      const x = cx + Math.cos(s.ang + t * 0.12) * rr * 0.9
-      const y = cy + Math.sin(s.ang + t * 0.12) * rr * 0.72
+      const x = cx + Math.cos(s.ang + t * 0.12) * rw * s.r
+      const y = cy + Math.sin(s.ang + t * 0.12) * rh * s.r
       const flash = 0.3 + 0.7 * Math.abs(Math.sin(t * 3.2 + s.phase))
       c.save()
       c.translate(x, y)
@@ -411,6 +459,7 @@ function startPoke(x: number, y: number) {
   pokeX = x
   pokeY = y
   pokeT = physical() === 'firm' ? 8 : physical() === 'runny' ? 16 : 12
+  markInteract(1100)
   lightTap()
   playSfx('tap')
   maybeHaptic()
@@ -421,11 +470,13 @@ function onTouchStart(e: TouchEvent) {
   const { x, y } = localPos(e, canvas)
   const { idx, d } = nearestRing(x, y)
   const toCenter = Math.hypot(pts[0].x - x, pts[0].y - y)
-  if (d < 40 || toCenter < 75) {
+  // 扁坨命中区更宽
+  if (d < 48 || toCenter < 90) {
     mode = 'drag'
-    grabIdx = d < 40 ? idx : 0
+    grabIdx = d < 48 ? idx : 0
     grabX = x
     grabY = y
+    markInteract(1200)
     maybeHaptic()
   } else {
     mode = 'poke'
@@ -438,11 +489,13 @@ function onTouchMove(e: TouchEvent) {
   const { x, y } = localPos(e, canvas)
   grabX = x
   grabY = y
+  markInteract(800)
   maybeHaptic()
 }
 
 function onTouchEnd() {
   if (mode === 'drag') lightTap()
+  markInteract(1000)
   mode = 'idle'
   grabIdx = -1
 }
@@ -452,11 +505,12 @@ function onMouseDown(e: MouseEvent) {
   const { x, y } = localPos(e, canvas)
   const { idx, d } = nearestRing(x, y)
   const toCenter = Math.hypot(pts[0].x - x, pts[0].y - y)
-  if (d < 40 || toCenter < 75) {
+  if (d < 48 || toCenter < 90) {
     mode = 'drag'
-    grabIdx = d < 40 ? idx : 0
+    grabIdx = d < 48 ? idx : 0
     grabX = x
     grabY = y
+    markInteract(1200)
   } else {
     startPoke(x, y)
   }
@@ -465,9 +519,11 @@ function onMouseDown(e: MouseEvent) {
     const p = localPos(ev, canvas)
     grabX = p.x
     grabY = p.y
+    markInteract(800)
     maybeHaptic()
   }
   const up = () => {
+    markInteract(1000)
     mode = 'idle'
     grabIdx = -1
     window.removeEventListener('mousemove', move)
@@ -582,7 +638,7 @@ onBeforeUnmount(() => stop())
   position: relative;
   width: 320px;
   max-width: 100%;
-  height: 300px;
+  height: 280px;
   margin: 0 auto;
   touch-action: none;
 }
@@ -590,7 +646,7 @@ onBeforeUnmount(() => stop())
   display: block;
   width: 320px;
   max-width: 100%;
-  height: 300px;
+  height: 280px;
   border-radius: 20px;
 }
 .soft__magnet-layer {
@@ -599,7 +655,7 @@ onBeforeUnmount(() => stop())
   top: 0;
   width: 320px;
   max-width: 100%;
-  height: 300px;
+  height: 280px;
   z-index: 2;
   touch-action: none;
 }
