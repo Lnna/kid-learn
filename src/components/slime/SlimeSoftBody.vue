@@ -507,21 +507,20 @@ function bindCanvas(): Promise<boolean> {
     }
 
     try {
-      // H5：优先拿真实 DOM canvas
       if (typeof document !== 'undefined') {
         const el = document.getElementById('slimeSoftBody') as HTMLCanvasElement | null
         if (el && typeof el.getContext === 'function') {
           finish(el)
           return
         }
+        const wrap = document.getElementById('slimeSoftBody')
+        const inner = wrap?.querySelector?.('canvas') as HTMLCanvasElement | null
+        if (inner && typeof inner.getContext === 'function') {
+          finish(inner)
+          return
+        }
       }
-      const q = uni.createSelectorQuery()
-      if (instance) q.in(instance as any)
-      q.select('#slimeSoftBody')
-        .fields({ node: true, size: true } as any)
-        .exec((res: any) => {
-          finish(res?.[0]?.node)
-        })
+      resolve(false)
     } catch {
       resolve(false)
     }
