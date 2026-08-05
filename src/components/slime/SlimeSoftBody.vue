@@ -98,14 +98,14 @@ function physical() {
 }
 
 function params() {
-  // 无持续重力；用手感参数区分形变与回弹
+  // 无持续重力；闲置强回中；交互时才允许大幅形变
   if (physical() === 'runny') {
-    return { kRing: 0.11, kCenter: 0.055, kSkip: 0.05, damp: 0.94, pokeForce: 28, dragFollow: 0.62, restore: 0.018 }
+    return { kRing: 0.1, kCenter: 0.05, kSkip: 0.045, damp: 0.9, pokeForce: 28, dragFollow: 0.7, restore: 0.14 }
   }
   if (physical() === 'firm') {
-    return { kRing: 0.32, kCenter: 0.26, kSkip: 0.18, damp: 0.86, pokeForce: 10, dragFollow: 0.22, restore: 0.055 }
+    return { kRing: 0.28, kCenter: 0.22, kSkip: 0.16, damp: 0.84, pokeForce: 10, dragFollow: 0.28, restore: 0.2 }
   }
-  return { kRing: 0.18, kCenter: 0.13, kSkip: 0.09, damp: 0.9, pokeForce: 18, dragFollow: 0.42, restore: 0.032 }
+  return { kRing: 0.16, kCenter: 0.12, kSkip: 0.08, damp: 0.88, pokeForce: 18, dragFollow: 0.48, restore: 0.16 }
 }
 
 function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
@@ -183,16 +183,39 @@ function markInteract(ms = 900) {
   interactUntil = performance.now() + ms
 }
 
+function freezeVelocity() {
+  for (const pt of pts) {
+    pt.px = pt.x
+    pt.py = pt.y
+  }
+}
+
+function softClamp() {
+  // 只做轻柔边界，不设“地面落点”，避免贴底后被弹簧越拽越下
+  const pad = 16
+  const cx = rest[0]?.x ?? cssW / 2
+  const cy = rest[0]?.y ?? cssH / 2
+  for (const pt of pts) {
+    if (pt.x < pad) pt.x += (pad - pt.x) * 0.5
+    if (pt.x > cssW - pad) pt.x -= (pt.x - (cssW - pad)) * 0.5
+    if (pt.y < pad) pt.y += (pad - pt.y) * 0.5
+    if (pt.y > cssH - pad) {
+      // 触底：弹回中心方向，而不是钉在底边
+      pt.y -= (pt.y - (cssH - pad)) * 0.65
+      pt.y += (cy - pt.y) * 0.08
+      pt.x += (cx - pt.x) * 0.04
+    }
+  }
+}
+
 function integrate() {
   const p = params()
-  const interacting = mode !== 'idle' || pokeT > 0 || performance.now() < interactUntil
-  // 地面在静息坨下方留裕量，只作安全夹紧，不当“永久落点”
-  const ground = cssH - 8
-  const left = 10
-  const right = cssW - 10
-  const top = 8
+  const holding = mode === 'drag'
+  const poking = pokeT > 0
+  const cooling = performance.now() < interactUntil
+  const idle = !holding && !poking && !cooling
 
-  if (pokeT > 0) {
+  if (poking) {
     pokeT -= 1
     for (let i = 1; i < pts.length; i++) {
       const dx = pts[i].x - pokeX
@@ -217,11 +240,11 @@ function integrate() {
         pts[i].x += dx * pull * m
         pts[i].y += dy * pull * m
       }
-      markInteract(400)
+      markInteract(350)
     }
   }
 
-  if (mode === 'drag' && grabIdx >= 0) {
+  if (holding && grabIdx >= 0) {
     const g = pts[grabIdx]
     g.x += (grabX - g.x) * p.dragFollow
     g.y += (grabY - g.y) * p.dragFollow
@@ -233,21 +256,36 @@ function integrate() {
         pts[n].x += (grabX - pts[n].x) * p.dragFollow * 0.4
         pts[n].y += (grabY - pts[n].y) * p.dragFollow * 0.4
       }
-      pts[0].x += (grabX - pts[0].x) * p.dragFollow * 0.24
-      pts[0].y += (grabY - pts[0].y) * p.dragFollow * 0.24
+      pts[0].x += (grabX - pts[0].x) * p.dragFollow * 0.25
+      pts[0].y += (grabY - pts[0].y) * p.dragFollow * 0.25
     }
+    // 手指按住（含不动）：保持当前形变，清速度，避免松手/停住后继续往下漂
+    applySprings()
+    softClamp()
+    freezeVelocity()
+    return
   }
 
-  // 闲置：拉回扁坨静息形（根因修复：不再每帧重力沉底）
-  if (!interacting) {
+  if (idle) {
+    // 闲置：强力回到正中间静息扁坨，并清速度（不再沉底）
     const k = p.restore
     for (let i = 0; i < pts.length; i++) {
       pts[i].x += (rest[i].x - pts[i].x) * k
       pts[i].y += (rest[i].y - pts[i].y) * k
     }
+    applySprings()
+    softClamp()
+    freezeVelocity()
+    return
   }
 
-  for (let iter = 0; iter < 4; iter++) applySprings()
+  // 松手后的短暂冷却：边回中边保留一点惯性
+  const blend = p.restore * 0.55
+  for (let i = 0; i < pts.length; i++) {
+    pts[i].x += (rest[i].x - pts[i].x) * blend
+    pts[i].y += (rest[i].y - pts[i].y) * blend
+  }
+  for (let iter = 0; iter < 3; iter++) applySprings()
 
   for (let i = 0; i < pts.length; i++) {
     const pt = pts[i]
@@ -257,23 +295,8 @@ function integrate() {
     pt.py = pt.y
     pt.x += vx
     pt.y += vy
-    if (pt.x < left) {
-      pt.x = left
-      pt.px = left + vx * 0.2
-    }
-    if (pt.x > right) {
-      pt.x = right
-      pt.px = right + vx * 0.2
-    }
-    if (pt.y < top) {
-      pt.y = top
-      pt.py = top + vy * 0.2
-    }
-    if (pt.y > ground) {
-      pt.y = ground
-      pt.py = ground + vy * 0.15
-    }
   }
+  softClamp()
 }
 
 function smoothRingPath(c: CanvasRenderingContext2D) {
@@ -495,7 +518,8 @@ function onTouchMove(e: TouchEvent) {
 
 function onTouchEnd() {
   if (mode === 'drag') lightTap()
-  markInteract(1000)
+  // 短冷却后强回中；按住不动时已在 integrate 里冻住
+  markInteract(380)
   mode = 'idle'
   grabIdx = -1
 }
@@ -523,7 +547,7 @@ function onMouseDown(e: MouseEvent) {
     maybeHaptic()
   }
   const up = () => {
-    markInteract(1000)
+    markInteract(380)
     mode = 'idle'
     grabIdx = -1
     window.removeEventListener('mousemove', move)
