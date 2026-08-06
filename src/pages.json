@@ -76,7 +76,7 @@
     "navigationBarTitleText": "小小花",
     "navigationBarBackgroundColor": "#FFF8EE",
     "backgroundColor": "#FFF8EE",
-    "rpxCalcMaxDeviceWidth": 960,
+    "rpxCalcMaxDeviceWidth": 480,
     "rpxCalcBaseDeviceWidth": 375
   }
 }
