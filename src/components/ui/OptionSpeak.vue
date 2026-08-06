@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-import { speak, unlockSpeak } from '../../utils/tts'
+import { speak, unlockSpeak, prefetchPinyinAudio } from '../../utils/tts'
 import { stripDecorations } from '../../utils/speakText'
 import { playSfx } from '../../utils/sfx'
 
@@ -34,9 +34,10 @@ function onSpeak() {
   const raw = stripDecorations((props.text || '').trim())
   if (!raw) return
   unlockSpeak()
-  playSfx('tap')
-  // 拼音由 speak() 内部映为一声汉字；此处勿先乱换成错调字
+  prefetchPinyinAudio([raw])
+  // 先发音再点效，避免点效抢占手机音频焦点造成「先等一下再出声」
   speak(raw, props.lang ? { lang: props.lang } : {})
+  playSfx('tap')
 }
 </script>
 

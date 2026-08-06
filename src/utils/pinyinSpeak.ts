@@ -1,7 +1,8 @@
 /**
  * 拼音教学发音：
- * - 声母/单韵母优先本地预录（public/audio/pinyin/*.mp3），声调准确
- * - 其余再映到一声汉字给通用 TTS
+ * - 仅 d/t/n/l/f 用本地预录（src/static/audio/pinyin/，体积小）
+ * - 其它声母/韵母一律网络 TTS（已准确），不往 static 堆 mp3
+ * - 源文件可放 audio/，需要时只同步这 5 个到 src/static/audio/pinyin/
  */
 
 /** 去声调、统一 ü（须在 NFD 去音符之前处理，否则 ü 会变成 u） */
@@ -512,53 +513,30 @@ export function fourToneSyllables(token: string): string[] | null {
   return ([1, 2, 3, 4] as const).map((t) => applyToneToSyllable(base, t))
 }
 
-/** 已预录的声母/单韵母（对应 public/audio/pinyin/{key}.mp3） */
-const PINYIN_LOCAL_AUDIO = new Set([
-  'b',
-  'p',
-  'm',
-  'f',
-  'd',
-  't',
-  'n',
-  'l',
-  'g',
-  'k',
-  'h',
-  'j',
-  'q',
-  'x',
-  'zh',
-  'ch',
-  'sh',
-  'r',
-  'z',
-  'c',
-  's',
-  'y',
-  'w',
-  'a',
-  'o',
-  'e',
-  'i',
-  'u',
-  'v',
-])
+/** 仅这 5 个用本地预录；其它走网络 TTS */
+const PINYIN_LOCAL_AUDIO = new Set(['d', 't', 'n', 'l', 'f'])
 
-/**
- * 声母/单韵母本地音频 URL；无预录则 null。
- * 预录用带调拼音生成，避免「德=dé、特=tè」错调。
- */
+/** 本地预录禁止回退 TTS（避免德/特/讷/勒/佛错调） */
+export const PINYIN_LOCAL_ONLY = new Set(['d', 't', 'n', 'l', 'f'])
+
+/** 预录文件版本号：换音后改这个，避免线上缓存旧 mp3 */
+const PINYIN_AUDIO_VER = '20260806-dtnlf5'
+
+export function isPinyinLocalOnly(token: string): boolean {
+  const key = normalizePinyinKey(token)
+  return !!key && PINYIN_LOCAL_ONLY.has(key)
+}
+
+/** 本地预录 URL；仅 d/t/n/l/f 有文件 */
 export function pinyinLocalAudioUrl(token: string): string | null {
   const key = normalizePinyinKey(token)
-  // 集合只含声母/单韵母键；音节 de/bo 等不会命中
   if (!key || !PINYIN_LOCAL_AUDIO.has(key)) return null
   const base =
     (typeof import.meta !== 'undefined' &&
       (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL) ||
     '/'
   const prefix = base.endsWith('/') ? base : `${base}/`
-  return `${prefix}audio/pinyin/${key}.mp3`
+  return `${prefix}static/audio/pinyin/${key}.mp3?v=${PINYIN_AUDIO_VER}`
 }
 
 /** 无预录时的汉字兜底（声调可能不准，仅备用） */

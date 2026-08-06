@@ -2,6 +2,7 @@ import { hasUnsafeSpeakChars, stripDecorations, toSpeakText } from './speakText'
 import {
   expandPinyinForSpeech,
   isMostlyPinyinLatin,
+  isPinyinLocalOnly,
   pinyinLocalAudioUrl,
 } from './pinyinSpeak'
 
@@ -82,7 +83,8 @@ function whenWeixinReady(): Promise<WeixinBridge | null> {
   return new Promise((resolve) => {
     const done = () => resolve(getWeixinBridge())
     document.addEventListener('WeixinJSBridgeReady', done, { once: true })
-    setTimeout(done, 1200)
+    // 原先 1200ms 会把首次发音拖成「点了很久才响」
+    setTimeout(done, 280)
   })
   // #endif
   // #ifndef H5
@@ -91,12 +93,13 @@ function whenWeixinReady(): Promise<WeixinBridge | null> {
 }
 
 /**
- * 微信：必须在 invoke 回调里执行 play。
- * 旧写法「等回调结束再 play」在手机微信上会导致全部 Audio 失败（含两字短词）。
+ * 微信：首次需在 invoke 回调里 play；解锁成功后应立刻播，否则每点一次都卡 0.5～1s。
  */
 async function withWeChatAudioGate<T>(fn: () => Promise<T>): Promise<T> {
   // #ifdef H5
   if (!isWeChat()) return fn()
+  // 已解锁：直接播，避免每次等 Bridge
+  if (audioUnlockOk) return fn()
   const bridge = await whenWeixinReady()
   if (!bridge) return fn()
   return new Promise<T>((resolve, reject) => {
@@ -113,12 +116,28 @@ async function withWeChatAudioGate<T>(fn: () => Promise<T>): Promise<T> {
     } catch {
       run()
     }
-    setTimeout(run, 800)
+    // 兜底从 800ms 降到 120ms：Bridge 慢也不要整秒无声
+    setTimeout(run, 120)
   })
   // #endif
   // #ifndef H5
   return fn()
   // #endif
+}
+
+function isLocalAudioUrl(url: string): boolean {
+  if (!url) return false
+  if (url.startsWith('blob:') || url.startsWith('data:')) return true
+  try {
+    if (url.startsWith('/') || url.startsWith('./')) return true
+    if (typeof location !== 'undefined') {
+      const u = new URL(url, location.href)
+      return u.origin === location.origin
+    }
+  } catch {
+    /* ignore */
+  }
+  return /\/audio\//.test(url)
 }
 
 /** cancel → speak 最小间隔（ms）；安卓需更长 */
@@ -247,6 +266,24 @@ export function unlockSpeak(): void {
     }
   } catch {
     /* ignore */
+  }
+  // #endif
+}
+
+/** 预热声母/韵母本地 mp3，减少首次点击的缓冲等待 */
+export function prefetchPinyinAudio(tokens: string[]): void {
+  // #ifdef H5
+  if (typeof Audio === 'undefined') return
+  for (const t of tokens) {
+    const url = pinyinLocalAudioUrl(t)
+    if (!url) continue
+    try {
+      const a = new Audio()
+      a.preload = 'auto'
+      a.src = url
+    } catch {
+      /* ignore */
+    }
   }
   // #endif
 }
@@ -736,6 +773,7 @@ async function playUrlAudio(url: string, waitEnd = false, epoch = 0): Promise<bo
   // #ifdef H5
   try {
     if (epoch && epoch !== speakEpoch) return true
+    const local = isLocalAudioUrl(url)
 
     const doPlay = (): Promise<boolean> =>
       new Promise((resolve) => {
@@ -743,7 +781,6 @@ async function playUrlAudio(url: string, waitEnd = false, epoch = 0): Promise<bo
           resolve(true)
           return
         }
-        // 手机微信：在 Bridge 回调里新建 Audio 并立刻 play
         try {
           audioEl?.pause()
         } catch {
@@ -775,15 +812,27 @@ async function playUrlAudio(url: string, waitEnd = false, epoch = 0): Promise<bo
           resolve(ok)
         }
         const onErr = () => finish(false)
-        const onOk = () => finish(true)
+        const onOk = () => {
+          audioUnlockOk = true
+          finish(true)
+        }
         el.addEventListener('error', onErr)
         el.addEventListener('playing', onOk)
         el.addEventListener('ended', onOk)
-        // 有道未收录会很快 error；勿用 readyState 判成功（易假成功）
-        const timer = setTimeout(() => finish(el.currentTime > 0.01 || (!el.paused && el.duration > 0)), 2200)
+        // 本地 mp3 很快；网络兜底才需要长超时（原先一律 2200ms 会拖慢失败回退）
+        const timer = setTimeout(
+          () => finish(el.currentTime > 0.01 || (!el.paused && el.duration > 0)),
+          local ? 600 : 2200
+        )
         const p = el.play()
         if (p && typeof p.then === 'function') {
           p.then(() => {
+            audioUnlockOk = true
+            // 本地：play() resolve 即可认定已出声，不必再等 200ms
+            if (local) {
+              finish(true)
+              return
+            }
             setTimeout(() => {
               if (el.currentTime > 0.01 || (!el.paused && el.duration > 0)) finish(true)
             }, 200)
@@ -791,7 +840,16 @@ async function playUrlAudio(url: string, waitEnd = false, epoch = 0): Promise<bo
         }
       })
 
-    const started = isWeChat() ? await withWeChatAudioGate(doPlay) : await doPlay()
+    // 同源本地音频：优先在点击手势里直接 play，避免微信 Bridge 排队造成「点了要等一两秒」
+    let started: boolean
+    if (local) {
+      started = await doPlay()
+      if (!started && isWeChat() && !audioUnlockOk) {
+        started = await withWeChatAudioGate(doPlay)
+      }
+    } else {
+      started = isWeChat() ? await withWeChatAudioGate(doPlay) : await doPlay()
+    }
     if (!started) return false
     if (epoch && epoch !== speakEpoch) return true
     if (!waitEnd) return true
@@ -871,6 +929,17 @@ async function speakOnce(text: string, options: SpeakOptions, waitEnd: boolean):
         return true
       }
       if (epoch !== speakEpoch) return true
+      // d/t/n/l：禁止回退到 TTS（会读成德/特/讷/勒），再试一次本地
+      if (isPinyinLocalOnly(text.trim())) {
+        if (await playUrlAudio(local, waitEnd, epoch)) {
+          markSpokeOk(epoch)
+          return true
+        }
+        if (epoch === speakEpoch) {
+          console.warn('[tts] 本地拼音预录播放失败（不回退 TTS）:', text.trim(), local)
+        }
+        return epoch !== speakEpoch
+      }
     }
   }
 

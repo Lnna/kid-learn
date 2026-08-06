@@ -29,9 +29,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import type { TapReadActivity } from '../../engine/types'
-import { speak, unlockSpeak } from '../../utils/tts'
+import { speak, unlockSpeak, prefetchPinyinAudio } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 import ActivityIcon from '../ui/ActivityIcon.vue'
@@ -54,8 +54,10 @@ function onTap(item: TapReadActivity['items'][0]) {
   unlockSpeak()
   activeId.value = item.id
   explored.value = new Set([...explored.value, item.id])
-  playSfx('tap')
-  if (props.tts === false) return
+  if (props.tts === false) {
+    playSfx('tap')
+    return
+  }
   clearWordTimer()
   // 勿先 stopSpeak 再立刻 speak；由 speak() 处理打断与 cancel 间隔
   // 拼音声母/韵母用 label，由 TTS 映射为一声汉字（如 e→婀）；勿用可能错调的 speak
@@ -71,7 +73,9 @@ function onTap(item: TapReadActivity['items'][0]) {
     (item.speakLang?.toLowerCase().startsWith('en') ||
       (!/[\u4e00-\u9fff]/.test(word) && /[a-zA-Z]/.test(word)))
   const lang = item.speakLang || (enWord ? 'en-US' : undefined)
+  // 先发音，再点效，减少手机端「点了要等一会才出声」
   speak(letter, { lang })
+  playSfx('tap')
   if (enWord && word) {
     wordTimer = setTimeout(() => {
       wordTimer = null
@@ -80,6 +84,10 @@ function onTap(item: TapReadActivity['items'][0]) {
   }
 }
 
+onMounted(() => {
+  const tokens = props.activity.items.map((it) => it.label.trim()).filter(Boolean)
+  prefetchPinyinAudio(tokens)
+})
 onUnmounted(clearWordTimer)
 </script>
 
