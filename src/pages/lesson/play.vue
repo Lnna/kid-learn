@@ -31,18 +31,24 @@
         :color="subject?.color"
         :mascot="(subject?.mascot as any) || 'fox'"
         :new-unlocks="newUnlockNames"
+        :potion-label="potionLabel"
+        :can-hatch="spiritCanHatch"
+        :golden-feed-gained="goldenFeedGained"
         @retry="retry"
         @next="goNext"
         @back="goMap"
         @collection="goCollection"
+        @hatch="goSpirit"
       />
     </view>
+
+    <SpiritCompanion v-if="!finished && hasActiveSpirit" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, provide } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { findLevel, getAllLevelIds, isTheme } from '../../engine/catalog'
 import { calcStars, recordLevelResult, loadProgress } from '../../engine/progress'
 import { unlockItems } from '../../engine/collection'
@@ -53,9 +59,17 @@ import { PRINCESS_MAP } from '../../data/princess/princess'
 import { VEHICLE_MAP } from '../../data/vehicle/vehicle'
 import { setSfxEnabled } from '../../utils/sfx'
 import { unlockSpeak, stopSpeak } from '../../utils/tts'
+import {
+  canHatch,
+  getActiveSpirit,
+  grantGoldenFeed,
+  grantPotion,
+} from '../../engine/spiritStore'
+import { POTION_META } from '../../data/spirit'
 import type { Activity, Level, Subject, SubjectId } from '../../engine/types'
 import ActivityRenderer from '../../engine/renderer.vue'
 import StarReward from '../../components/activities/StarReward.vue'
+import SpiritCompanion from '../../components/spirit/SpiritCompanion.vue'
 
 const subjectId = ref<SubjectId>('math')
 const levelId = ref('')
@@ -68,6 +82,10 @@ const finalStars = ref(0)
 const startedAt = ref(Date.now())
 const ttsEnabled = ref(true)
 const newUnlockNames = ref<string[]>([])
+const potionLabel = ref('')
+const spiritCanHatch = ref(false)
+const goldenFeedGained = ref(false)
+const hasActiveSpirit = ref(false)
 
 const currentAct = computed<Activity | null>(() => level.value?.activities[actIndex.value] || null)
 const totalActs = computed(() => level.value?.activities.length || 1)
@@ -82,6 +100,10 @@ provide(
     levelId: levelId.value,
   }))
 )
+
+function refreshSpirit() {
+  hasActiveSpirit.value = !!getActiveSpirit()
+}
 
 function onActDone(score: { correct: number; total: number }) {
   scores.value.push(score)
@@ -99,7 +121,28 @@ function finish() {
   const secs = Math.round((Date.now() - startedAt.value) / 1000)
   recordLevelResult(subjectId.value, levelId.value, finalStars.value, secs)
   collectRewards()
+  collectSpiritRewards()
   finished.value = true
+}
+
+function collectSpiritRewards() {
+  potionLabel.value = ''
+  spiritCanHatch.value = false
+  goldenFeedGained.value = false
+
+  const sid = subjectId.value
+  if (sid === 'chinese' || sid === 'math' || sid === 'english') {
+    const r = grantPotion(sid, levelId.value)
+    if (r.granted && r.color) {
+      const meta = POTION_META[r.color]
+      potionLabel.value = `获得${meta.label} ×1`
+    }
+    spiritCanHatch.value = r.canHatch || canHatch()
+  }
+
+  if (finalStars.value >= 3 && (sid === 'chinese' || sid === 'math' || sid === 'english')) {
+    goldenFeedGained.value = grantGoldenFeed(finalStars.value)
+  }
 }
 
 const REWARD_NAME_MAPS: Record<string, Record<string, { name: string }>> = {
@@ -127,13 +170,22 @@ function goCollection() {
   }
 }
 
+function goSpirit() {
+  stopSpeak()
+  uni.navigateTo({ url: '/pages/spirit/home' })
+}
+
 function retry() {
   stopSpeak()
   actIndex.value = 0
   scores.value = []
   finished.value = false
   newUnlockNames.value = []
+  potionLabel.value = ''
+  spiritCanHatch.value = false
+  goldenFeedGained.value = false
   startedAt.value = Date.now()
+  refreshSpirit()
 }
 
 function loadLevel(nextLevelId: string) {
@@ -149,12 +201,16 @@ function loadLevel(nextLevelId: string) {
   scores.value = []
   finished.value = false
   newUnlockNames.value = []
+  potionLabel.value = ''
+  spiritCanHatch.value = false
+  goldenFeedGained.value = false
   startedAt.value = Date.now()
+  refreshSpirit()
   // #ifdef H5
   try {
-    const hash = `#/pages/lesson/play?subject=${subjectId.value}&level=${nextLevelId}`
+    const path = `/pages/lesson/play?subject=${subjectId.value}&level=${nextLevelId}`
     if (typeof history !== 'undefined' && history.replaceState) {
-      history.replaceState(null, '', hash)
+      history.replaceState(null, '', path)
     }
   } catch {
     /* ignore */
@@ -204,7 +260,10 @@ onLoad((q) => {
   ttsEnabled.value = settings.ttsEnabled
   setSfxEnabled(settings.sfxEnabled)
   startedAt.value = Date.now()
+  refreshSpirit()
 })
+
+onShow(refreshSpirit)
 </script>
 
 <style scoped lang="scss">

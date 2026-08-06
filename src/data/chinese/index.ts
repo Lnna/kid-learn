@@ -8,6 +8,7 @@ import {
   quiz,
   sequence,
   readAlong,
+  spiritLetterMorph,
   level,
   unit,
 } from '../helpers'
@@ -81,6 +82,11 @@ const u0 = unit(
             ],
             answerId: 'b',
           },
+        ]),
+        spiritLetterMorph('捏一捏单韵母', [
+          { letter: 'a', speak: '阿' },
+          { letter: 'o', speak: '喔' },
+          { letter: 'e', speak: '婀' },
         ]),
       ],
       'a o e i u ü，一个一个认识'

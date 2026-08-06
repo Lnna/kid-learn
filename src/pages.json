@@ -62,6 +62,13 @@
         "navigationStyle": "custom",
         "navigationBarTitleText": "史莱姆材料科学家"
       }
+    },
+    {
+      "path": "pages/spirit/home",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的小精灵"
+      }
     }
   ],
   "globalStyle": {

@@ -6,6 +6,8 @@ import {
   tracing,
   quiz,
   sequence,
+  spiritStretchRuler,
+  spiritLetterMorph,
   level,
   unit,
 } from '../helpers'
@@ -36,13 +38,17 @@ const u1 = unit(
         { id: 'n9', label: '9', speak: '九', icon: '9️⃣', color: '#FF922B' },
         { id: 'n10', label: '10', speak: '十', icon: '🔟', color: '#339AF0' },
       ]),
-      tracing('描一描 1～10', [
-        { id: 't1', char: '1', hint: '从上往下', speak: '一', grid: 'number' },
-        { id: 't5', char: '5', hint: '横竖弯再横', speak: '五', grid: 'number' },
-        { id: 't8', char: '8', speak: '八', grid: 'number' },
-        { id: 't10', char: '10', speak: '十', grid: 'number' },
-      ]),
+      spiritLetterMorph(
+        '捏一捏数字',
+        [
+          { letter: '1', speak: '一' },
+          { letter: '5', speak: '五' },
+          { letter: '8', speak: '八' },
+        ],
+        '把小精灵捏成数字，听读音'
+      ),
       quiz('数感小测', genCountQuiz(10, 4)),
+      spiritStretchRuler('精灵拉伸数到 5', 5, { max: 10, instruction: '左右拖动，让小精灵长度对准刻度 5（拉满是 10）' }),
     ], '快速过一遍 1 到 10'),
 
     level('math-1-02', '11～20 与数位', [

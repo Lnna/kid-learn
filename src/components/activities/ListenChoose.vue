@@ -38,6 +38,7 @@ import { speak, unlockSpeak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import ActivityIcon from '../ui/ActivityIcon.vue'
 import ChoiceOption from '../ui/ChoiceOption.vue'
+import { emitSpiritReact } from '../../utils/spiritMiss'
 
 const props = defineProps<{
   activity: ListenChooseActivity
@@ -86,7 +87,10 @@ function choose(id: string) {
   selected.value = id
   revealed.value = true
   const ok = id === props.activity.answerId
-  if (!ok) captureWrong()
+  if (!ok) {
+    captureWrong()
+  }
+  emitSpiritReact(ok ? 'hit' : 'miss')
   playSfx(ok ? 'correct' : 'wrong')
   setTimeout(() => {
     emit('done', { correct: ok ? 1 : 0, total: 1 })

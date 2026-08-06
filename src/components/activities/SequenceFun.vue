@@ -48,6 +48,7 @@ import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 import ActivityIcon from '../ui/ActivityIcon.vue'
 import ChoiceOption from '../ui/ChoiceOption.vue'
+import { emitSpiritReact } from '../../utils/spiritMiss'
 
 const props = defineProps<{
   activity: SequenceActivity
@@ -114,7 +115,10 @@ function unpick(i: number) {
 function check() {
   const ok = picked.value.every((id, i) => id === current.value.answerOrder[i])
   if (ok) correctCount.value++
-  else captureWrong()
+  else {
+    captureWrong()
+  }
+  emitSpiritReact(ok ? 'hit' : 'miss')
   playSfx(ok ? 'correct' : 'wrong')
   setTimeout(() => {
     if (idx.value < props.activity.items.length - 1) {

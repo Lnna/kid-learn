@@ -61,6 +61,7 @@
 import { ref, computed, watch, nextTick, getCurrentInstance, onMounted, onUnmounted } from 'vue'
 import type { DragMatchActivity } from '../../engine/types'
 import { playSfx } from '../../utils/sfx'
+import { emitSpiritReact } from '../../utils/spiritMiss'
 import ActivityIcon from '../ui/ActivityIcon.vue'
 import OptionSpeak from '../ui/OptionSpeak.vue'
 
@@ -221,6 +222,7 @@ function pickRight(id: string) {
     matched.value = new Set([...matched.value, id])
     selectedLeft.value = ''
     playSfx('correct')
+    emitSpiritReact('hit')
     if (matched.value.size >= props.activity.pairs.length) {
       const total = props.activity.pairs.length
       const correct = Math.max(0, total - mistakes.value)
@@ -229,6 +231,7 @@ function pickRight(id: string) {
   } else {
     mistakes.value++
     playSfx('wrong')
+    emitSpiritReact('miss')
     selectedLeft.value = ''
   }
 }

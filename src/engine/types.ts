@@ -30,6 +30,8 @@ export type ActivityType =
   | 'grid-dig'
   | 'rock-lab'
   | 'move-play'
+  | 'spirit-stretch-ruler'
+  | 'spirit-letter-morph'
 
 export interface TapReadItem {
   id: string
@@ -224,6 +226,27 @@ export interface MovePlayActivity extends ActivityBase {
   encourage?: string
 }
 
+/** 课程精灵学具：拉伸数感尺 */
+export interface SpiritStretchRulerActivity extends ActivityBase {
+  type: 'spirit-stretch-ruler'
+  /** 目标刻度 */
+  target: number
+  /** 刻度上限，默认 10 */
+  max?: number
+}
+
+export interface SpiritLetterItem {
+  letter: string
+  speak?: string
+  speakLang?: string
+}
+
+/** 课程精灵学具：捏字母 */
+export interface SpiritLetterMorphActivity extends ActivityBase {
+  type: 'spirit-letter-morph'
+  letters: SpiritLetterItem[]
+}
+
 export type Activity =
   | TapReadActivity
   | ListenChooseActivity
@@ -237,6 +260,8 @@ export type Activity =
   | GridDigActivity
   | RockLabActivity
   | MovePlayActivity
+  | SpiritStretchRulerActivity
+  | SpiritLetterMorphActivity
 
 export interface Level {
   id: string

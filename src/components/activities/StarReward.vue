@@ -37,6 +37,17 @@
       <text v-for="n in newUnlocks" :key="n" class="unlock__name">{{ n }}</text>
       <KButton label="去看图鉴" variant="soft" :color="color" @click="emit('collection')" />
     </view>
+    <view v-if="potionLabel || goldenFeedGained || canHatch" class="potion">
+      <text v-if="potionLabel" class="potion__label">{{ potionLabel }}</text>
+      <text v-if="goldenFeedGained" class="potion__feed">满星奖励：黄金饲料 ×1</text>
+      <KButton
+        v-if="canHatch"
+        label="去孵化小精灵"
+        variant="soft"
+        color="#4DA3FF"
+        @click="emit('hatch')"
+      />
+    </view>
     <view class="actions">
       <KButton label="再玩一次" variant="soft" :color="color" @click="emit('retry')" />
       <KButton label="下一关" :color="color" @click="emit('next')" />
@@ -59,16 +70,22 @@ withDefaults(
     mascot?: 'panda' | 'fox' | 'owl' | 'rabbit' | 'bear' | 'mole' | 'dino' | 'town' | 'princess' | 'vehicle' | 'slime'
     title?: string
     newUnlocks?: string[]
+    potionLabel?: string
+    canHatch?: boolean
+    goldenFeedGained?: boolean
   }>(),
   {
     mascot: 'fox',
     title: '太棒了！',
     color: '#3ECF8E',
     newUnlocks: () => [],
+    potionLabel: '',
+    canHatch: false,
+    goldenFeedGained: false,
   }
 )
 
-const emit = defineEmits<{ retry: []; next: []; back: []; collection: [] }>()
+const emit = defineEmits<{ retry: []; next: []; back: []; collection: []; hatch: [] }>()
 
 const show = ref(false)
 
@@ -214,6 +231,30 @@ onMounted(() => {
   font-size: 32rpx;
   font-weight: 900;
   color: var(--color-star);
+}
+.potion {
+  background: #fff;
+  border-radius: var(--radius-md);
+  padding: 20rpx 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  position: relative;
+  z-index: 3;
+  animation: bounce-in 0.5s ease;
+}
+.potion__label {
+  font-size: 30rpx;
+  font-weight: 900;
+  color: #4da3ff;
+}
+.potion__feed {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #c9951a;
 }
 .actions {
   display: flex;

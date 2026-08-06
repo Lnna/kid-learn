@@ -10,6 +10,8 @@ import type {
   ReadAlongActivity,
   RockLabActivity,
   SequenceActivity,
+  SpiritLetterMorphActivity,
+  SpiritStretchRulerActivity,
   TapReadActivity,
   TracingActivity,
   LabConfig,
@@ -158,6 +160,35 @@ export function movePlay(
     instruction: extra.instruction || '跟着做动作，做完点一下',
     moves,
     encourage: extra.encourage,
+  }
+}
+
+export function spiritStretchRuler(
+  title: string,
+  target: number,
+  extra: Partial<Pick<SpiritStretchRulerActivity, 'instruction' | 'max'>> = {}
+): SpiritStretchRulerActivity {
+  return {
+    id: id('ssr'),
+    type: 'spirit-stretch-ruler',
+    title,
+    instruction: extra.instruction || '左右拖动，把小精灵拉到目标数字',
+    target,
+    max: extra.max ?? 10,
+  }
+}
+
+export function spiritLetterMorph(
+  title: string,
+  letters: SpiritLetterMorphActivity['letters'],
+  instruction = '拖一拖，松手捏成字母并听发音'
+): SpiritLetterMorphActivity {
+  return {
+    id: id('slm'),
+    type: 'spirit-letter-morph',
+    title,
+    instruction,
+    letters,
   }
 }
 

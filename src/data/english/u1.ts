@@ -5,6 +5,7 @@ import {
   tracing,
   quiz,
   sequence,
+  spiritLetterMorph,
   level,
   unit,
 } from '../helpers'
@@ -44,6 +45,14 @@ export const englishUnit1 = unit(
         ],
         'b',
         { promptLang: EN }
+      ),
+      spiritLetterMorph(
+        '捏字母 A O',
+        [
+          { letter: 'A', speak: 'A', speakLang: EN },
+          { letter: 'O', speak: 'O', speakLang: EN },
+        ],
+        '拖一拖捏成字母，听英语发音'
       ),
     ], '认识 A 到 E'),
 

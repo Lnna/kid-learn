@@ -89,6 +89,19 @@
       :tts="tts"
       @done="onDone"
     />
+    <SpiritStretchRuler
+      v-else-if="activity.type === 'spirit-stretch-ruler'"
+      :activity="activity"
+      :color="color"
+      @done="onDone"
+    />
+    <SpiritLetterMorph
+      v-else-if="activity.type === 'spirit-letter-morph'"
+      :activity="activity"
+      :color="color"
+      :tts="tts"
+      @done="onDone"
+    />
   </view>
 </template>
 
@@ -106,6 +119,8 @@ import ReadAlong from '../components/activities/ReadAlong.vue'
 import GridDig from '../components/activities/GridDig.vue'
 import RockLab from '../components/activities/RockLab.vue'
 import MovePlay from '../components/activities/MovePlay.vue'
+import SpiritStretchRuler from '../components/activities/SpiritStretchRuler.vue'
+import SpiritLetterMorph from '../components/activities/SpiritLetterMorph.vue'
 
 defineProps<{
   activity: Activity

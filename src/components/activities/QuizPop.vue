@@ -49,6 +49,7 @@ import { toSpeakText } from '../../utils/speakText'
 import { playSfx } from '../../utils/sfx'
 import ActivityIcon from '../ui/ActivityIcon.vue'
 import ChoiceOption from '../ui/ChoiceOption.vue'
+import { emitSpiritReact } from '../../utils/spiritMiss'
 
 const props = defineProps<{
   activity: QuizActivity
@@ -154,7 +155,10 @@ function choose(id: string) {
   revealed.value = true
   const ok = id === current.value.answerId
   if (ok) correctCount.value++
-  else captureWrong()
+  else {
+    captureWrong()
+  }
+  emitSpiritReact(ok ? 'hit' : 'miss')
   playSfx(ok ? 'correct' : 'wrong')
   setTimeout(() => {
     if (idx.value < props.activity.items.length - 1) {

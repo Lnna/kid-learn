@@ -51,7 +51,8 @@
   "h5": {
     "title": "小小花",
     "router": {
-      "mode": "hash"
+      "mode": "history",
+      "base": "/"
     },
     "devServer": {
       "https": false

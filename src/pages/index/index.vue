@@ -54,6 +54,15 @@
         <text class="monster-entry__arrow">→</text>
       </view>
 
+      <view class="spirit-entry anim-bounce" @click="goSpirit">
+        <view class="spirit-entry__icon">🫧</view>
+        <view class="spirit-entry__info">
+          <text class="spirit-entry__name">我的小精灵</text>
+          <text class="spirit-entry__desc">{{ spiritHint }}</text>
+        </view>
+        <text class="spirit-entry__arrow">→</text>
+      </view>
+
       <view class="footer-nav">
         <KButton label="家长中心" variant="soft" color="#9B7BFF" @click="goParent" />
         <KButton label="设置" variant="ghost" @click="goSettings" />
@@ -68,6 +77,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { SUBJECTS } from '../../engine/catalog'
 import { getTotalStars, loadProgress } from '../../engine/progress'
 import { countMistakes } from '../../engine/mistakes'
+import { canHatch, getActiveSpirit, loadSpiritStore, potionTotal } from '../../engine/spiritStore'
 import type { SubjectId } from '../../engine/types'
 import { unlockSpeak } from '../../utils/tts'
 import Mascot from '../../components/ui/Mascot.vue'
@@ -78,6 +88,7 @@ const totalStars = ref(0)
 const progressStars = ref<Record<string, number>>({})
 const mistakeCount = ref(0)
 const badgeText = ref('0')
+const spiritHint = ref('学语文数学掉药水，孵化课中伙伴')
 
 type MascotKind = 'panda' | 'fox' | 'owl' | 'rabbit' | 'bear'
 
@@ -96,6 +107,16 @@ function refresh() {
   progressStars.value = map
   mistakeCount.value = countMistakes()
   badgeText.value = mistakeCount.value > 99 ? '99+' : String(mistakeCount.value)
+
+  const sp = loadSpiritStore()
+  const active = getActiveSpirit()
+  if (active) {
+    spiritHint.value = `${active.name} 陪你上课 · 药水 ${potionTotal(sp)} 瓶`
+  } else if (canHatch(sp)) {
+    spiritHint.value = '药水够了！快去烧杯孵化'
+  } else {
+    spiritHint.value = '学语文数学掉药水，孵化课中伙伴'
+  }
 }
 
 function starOf(id: string) {
@@ -115,6 +136,11 @@ function goThemeBase() {
 function goMonster() {
   unlockSpeak()
   uni.navigateTo({ url: '/pages/monster/arena' })
+}
+
+function goSpirit() {
+  unlockSpeak()
+  uni.navigateTo({ url: '/pages/spirit/home' })
 }
 
 function goParent() {
@@ -341,6 +367,45 @@ onShow(refresh)
 .monster-entry__arrow {
   font-size: 48rpx;
   color: var(--color-error);
+  font-weight: 800;
+}
+.spirit-entry {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 20rpx;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 28rpx;
+  box-shadow: var(--shadow-soft);
+  border: 4rpx solid color-mix(in srgb, #4da3ff 35%, white);
+}
+.spirit-entry:active {
+  transform: scale(0.98);
+}
+.spirit-entry__icon {
+  font-size: 56rpx;
+  line-height: 1;
+}
+.spirit-entry__info {
+  flex: 1;
+  min-width: 0;
+}
+.spirit-entry__name {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 900;
+  color: #4da3ff;
+}
+.spirit-entry__desc {
+  display: block;
+  font-size: 24rpx;
+  color: var(--color-muted);
+  margin-top: 4rpx;
+}
+.spirit-entry__arrow {
+  font-size: 48rpx;
+  color: #4da3ff;
   font-weight: 800;
 }
 .footer-nav {
