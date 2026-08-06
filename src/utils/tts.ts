@@ -173,12 +173,8 @@ function ensureVoices(): void {
   const load = () => {
     const voices = window.speechSynthesis.getVoices()
     if (!voices.length) return
-    preferredVoice =
-      voices.find((v) => v.lang.toLowerCase().startsWith('zh') && v.localService) ||
-      voices.find((v) => v.lang.toLowerCase().startsWith('zh')) ||
-      voices.find((v) => /chinese|中文|普通话|国语|xiaomi|miui|google/i.test(v.name)) ||
-      voices[0] ||
-      null
+    // 强制普通话：优先 zh-CN，排除粤语/香港
+    preferredVoice = pickMandarinVoice(voices)
   }
   load()
   window.speechSynthesis.addEventListener?.('voiceschanged', load)
@@ -313,15 +309,53 @@ function listVoices(): SpeechSynthesisVoice[] {
   // #endif
 }
 
+/** 粤语 / 香港等，幼小衔接必须排除 */
+function isCantoneseVoice(v: SpeechSynthesisVoice): boolean {
+  const tag = `${v.lang} ${v.name}`.toLowerCase()
+  return /yue|zh-hk|zh_hk|cantonese|粤语|廣東话|广东话|香港/.test(tag)
+}
+
+function isMandarinVoice(v: SpeechSynthesisVoice): boolean {
+  if (isCantoneseVoice(v)) return false
+  const lang = (v.lang || '').toLowerCase().replace(/_/g, '-')
+  const name = (v.name || '').toLowerCase()
+  if (lang === 'zh-cn' || lang.startsWith('zh-cn')) return true
+  if (/普通话|國語|国语|mandarin|putonghua/.test(name)) return true
+  // 大陆常见引擎，且非粤语
+  if (/zh-cn|cmn-cn|chinese\s*\(china\)|xiaomi|miui|huawei|samsung.*zh/i.test(`${lang} ${name}`)) {
+    return true
+  }
+  return false
+}
+
+/**
+ * 中文强制优先 zh-CN 普通话；绝不选粤语/香港语音。
+ */
+function pickMandarinVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  if (!voices.length) return null
+  const mandarin = voices.filter(isMandarinVoice)
+  return (
+    mandarin.find((v) => v.localService && v.lang.toLowerCase().replace(/_/g, '-').startsWith('zh-cn')) ||
+    mandarin.find((v) => v.lang.toLowerCase().replace(/_/g, '-').startsWith('zh-cn')) ||
+    mandarin.find((v) => v.localService) ||
+    mandarin[0] ||
+    null
+  )
+}
+
+/** 中文语种码统一成 zh-CN（避免 zh-HK 等触发粤语） */
+function normalizeZhLang(lang: string): string {
+  const l = (lang || '').toLowerCase().replace(/_/g, '-')
+  if (l.startsWith('en')) return lang
+  if (l.startsWith('zh') || l.startsWith('cmn') || l.startsWith('yue')) return 'zh-CN'
+  return lang
+}
+
 /** true=有中文 voice；false=已加载列表但没有；null=列表未就绪（不据此断定没装引擎） */
 function hasChineseVoice(): boolean | null {
   const voices = listVoices()
   if (!voices.length) return null
-  const hit = voices.some(
-    (v) =>
-      v.lang.toLowerCase().startsWith('zh') ||
-      /chinese|中文|普通话|国语|xiaomi|miui/i.test(v.name)
-  )
+  const hit = voices.some((v) => isMandarinVoice(v) || (!isCantoneseVoice(v) && /zh|chinese|中文/i.test(v.lang + v.name)))
   return hit
 }
 
@@ -344,7 +378,7 @@ function markSpokeOk(epoch: number): void {
 }
 
 function resolveLang(text: string, options: SpeakOptions): string {
-  if (options.lang) return options.lang
+  if (options.lang) return normalizeZhLang(options.lang)
   // 含中文，或数字/算式（无拉丁长词）→ 中文引擎
   if (/[\u4e00-\u9fff]/.test(text)) return 'zh-CN'
   if (/[+\-−–×÷=＝?？]/.test(text) || /^\d+(\s|$)/.test(text)) return 'zh-CN'
@@ -403,20 +437,28 @@ function speakWeb(text: string, options: SpeakOptions, waitEnd = false, epoch = 
         }
 
         const u = new SpeechSynthesisUtterance(text)
-        u.lang = options.lang || resolveLang(text, options)
+        // 中文一律 zh-CN，避免系统按 zh-HK 等选成粤语
+        u.lang = normalizeZhLang(options.lang || resolveLang(text, options))
         u.rate = options.rate ?? 0.92
         u.pitch = options.pitch ?? 1
         u.volume = 1
 
-        // 安卓/小米：强制指定 voice 经常导致完全无声，只设 lang
-        if (!isAndroid()) {
-          const voices = window.speechSynthesis.getVoices()
+        const voices = window.speechSynthesis.getVoices()
+        if (u.lang.toLowerCase().startsWith('zh')) {
+          const mandarin = pickMandarinVoice(voices) || preferredVoice
+          // 桌面/iOS：指定普通话 voice；安卓仅在找到明确 zh-CN 时指定（乱指定易无声）
+          if (mandarin) {
+            if (!isAndroid() || mandarin.lang.toLowerCase().replace(/_/g, '-').startsWith('zh-cn')) {
+              u.voice = mandarin
+              u.lang = 'zh-CN'
+            }
+          }
+        } else if (!isAndroid()) {
           const prefix = u.lang.slice(0, 2).toLowerCase()
           const voice =
             voices.find((v) => v.lang.toLowerCase().startsWith(prefix) && v.localService) ||
-            voices.find((v) => v.lang.toLowerCase().startsWith(prefix)) ||
-            preferredVoice
-          if (voice && voice.lang.toLowerCase().startsWith(prefix)) u.voice = voice
+            voices.find((v) => v.lang.toLowerCase().startsWith(prefix))
+          if (voice) u.voice = voice
         }
 
         let settled = false
