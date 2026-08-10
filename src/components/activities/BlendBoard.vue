@@ -65,7 +65,11 @@ function revealTo(i: number) {
     if (props.tts !== false) {
       // 有 speakLang / 英文课 → 英文；否则交 resolveLang（语文拼音走中文/本地预录）
       const lang = current.value.speakLang || getLessonSpeakLang()
-      speak(current.value.parts[i], lang ? { lang, rate: 0.7 } : { rate: 0.7 })
+      // 拼读部件保持字面（c-a-t），勿扩成字母名 see-ay-tee
+      speak(
+        current.value.parts[i],
+        lang ? { lang, rate: 0.7, keepLetterLiteral: true } : { rate: 0.7, keepLetterLiteral: true }
+      )
     }
     if (revealed.value >= current.value.parts.length) {
       setTimeout(sayResult, 300)

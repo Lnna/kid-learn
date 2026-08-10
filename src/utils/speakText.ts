@@ -38,6 +38,55 @@ export function hasUnsafeSpeakChars(text: string): boolean {
 }
 
 /**
+ * 英文字母名 → 现代 TTS 可读拼写（与 apple 等同路连续语音，避免单字母 A 读成冠词/机械拼读）。
+ * 美式字母名。
+ */
+const EN_LETTER_NAME: Record<string, string> = {
+  a: 'ay',
+  b: 'bee',
+  c: 'see',
+  d: 'dee',
+  e: 'ee',
+  f: 'eff',
+  g: 'jee',
+  h: 'aych',
+  i: 'eye',
+  j: 'jay',
+  k: 'kay',
+  l: 'ell',
+  m: 'em',
+  n: 'en',
+  o: 'oh',
+  p: 'pee',
+  q: 'cue',
+  r: 'ar',
+  s: 'ess',
+  t: 'tee',
+  u: 'you',
+  v: 'vee',
+  w: 'double you',
+  x: 'ex',
+  y: 'why',
+  z: 'zee',
+}
+
+/** 单个字母或空格分隔字母串（A / A B C）→ 字母名拼写；其它原文返回 */
+export function expandEnglishLettersForTts(text: string): string {
+  const t = text.trim()
+  if (!t) return t
+  if (/^[A-Za-z]$/.test(t)) {
+    return EN_LETTER_NAME[t.toLowerCase()] || t
+  }
+  if (/^[A-Za-z](?:\s+[A-Za-z])+$/.test(t)) {
+    return t
+      .split(/\s+/)
+      .map((ch) => EN_LETTER_NAME[ch.toLowerCase()] || ch)
+      .join(' ')
+  }
+  return t
+}
+
+/**
  * 中文数学题朗读：如「3+2=?」→「三加二等于多少」
  * 已是通顺中文则尽量原样保留（仅清装饰、规范算符）。
  * 若清完只剩 emoji，返回空串（调用方勿再回退到原文）。

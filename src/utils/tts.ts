@@ -1,4 +1,4 @@
-import { hasUnsafeSpeakChars, stripDecorations, toSpeakText } from './speakText'
+import { hasUnsafeSpeakChars, stripDecorations, toSpeakText, expandEnglishLettersForTts } from './speakText'
 import {
   expandPinyinForSpeech,
   isMostlyPinyinLatin,
@@ -16,6 +16,11 @@ type SpeakOptions = {
   pitch?: number
   /** 为 true 时失败不弹 toast（用于自动播报，避免误报） */
   silent?: boolean
+  /**
+   * 英文拼读部件等：保留单字母原文，不扩成 ay/bee。
+   * 字母课（A→apple）不要开这个。
+   */
+  keepLetterLiteral?: boolean
 }
 
 const CACHE_NAME = 'kidlearn-tts-v1'
@@ -408,12 +413,15 @@ function resolveLang(text: string, options: SpeakOptions): string {
   return 'zh-CN'
 }
 
-function prepareText(text: string, lang: string): string {
+function prepareText(text: string, lang: string, options: SpeakOptions = {}): string {
   const trimmed = text.trim()
   if (!trimmed) return ''
   // 英文：绝不按拼音展开（否则 A→阿、b→波、pen→盆）
   if (lang.toLowerCase().startsWith('en')) {
-    return stripDecorations(trimmed)
+    const cleaned = stripDecorations(trimmed)
+    // 字母名扩成 ay/bee，与 apple 等同路 TTS，避免单字母怪腔/旧式拼读音
+    if (options.keepLetterLiteral) return cleaned
+    return expandEnglishLettersForTts(cleaned)
   }
   // 拼音 → 呼读/一声汉字（b→波，e→婀）
   const expanded = expandPinyinForSpeech(trimmed)
@@ -1016,7 +1024,7 @@ async function speakOnce(text: string, options: SpeakOptions, waitEnd: boolean):
     }
   }
 
-  const say = prepareText(text, lang)
+  const say = prepareText(text, lang, options)
   // 清完没有可读文字（纯 emoji）→ 当作成功跳过，绝不报错
   if (!say) return true
 
