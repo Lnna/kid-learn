@@ -48,7 +48,7 @@
 
 <script setup lang="ts">
 import { ref, computed, provide } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import { findLevel, getAllLevelIds, isTheme } from '../../engine/catalog'
 import { calcStars, recordLevelResult, loadProgress } from '../../engine/progress'
 import { unlockItems } from '../../engine/collection'
@@ -58,7 +58,7 @@ import { TOWN_MAP } from '../../data/town/town'
 import { PRINCESS_MAP } from '../../data/princess/princess'
 import { VEHICLE_MAP } from '../../data/vehicle/vehicle'
 import { setSfxEnabled } from '../../utils/sfx'
-import { unlockSpeak, stopSpeak } from '../../utils/tts'
+import { unlockSpeak, stopSpeak, setLessonSpeakLang } from '../../utils/tts'
 import {
   canHatch,
   getActiveSpirit,
@@ -248,6 +248,8 @@ function goBack() {
 onLoad((q) => {
   subjectId.value = (q?.subject as SubjectId) || 'math'
   levelId.value = (q?.level as string) || ''
+  // 英文课：全课拉丁文走英文 TTS（含小写字母）；语文等科目才走拼音
+  setLessonSpeakLang(subjectId.value === 'english' ? 'en-US' : undefined)
   const found = findLevel(subjectId.value, levelId.value)
   if (!found) {
     uni.showToast({ title: '关卡不存在', icon: 'none' })
@@ -264,6 +266,11 @@ onLoad((q) => {
 })
 
 onShow(refreshSpirit)
+
+onUnload(() => {
+  stopSpeak()
+  setLessonSpeakLang(undefined)
+})
 </script>
 
 <style scoped lang="scss">

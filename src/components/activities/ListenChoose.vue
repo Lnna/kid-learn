@@ -13,7 +13,7 @@
         :index="i"
         :label="opt.label"
         :speak="opt.speak"
-        :speak-lang="opt.speakLang"
+        :speak-lang="opt.speakLang || activity.promptLang"
         :tts="tts"
         :root-class="{
           correct: revealed && opt.id === activity.answerId,
@@ -34,7 +34,7 @@
 import { ref, onMounted, inject, type ComputedRef } from 'vue'
 import type { ListenChooseActivity, SubjectId } from '../../engine/types'
 import { addMistake } from '../../engine/mistakes'
-import { speak, unlockSpeak } from '../../utils/tts'
+import { speak, unlockSpeak, getLessonSpeakLang } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import ActivityIcon from '../ui/ActivityIcon.vue'
 import ChoiceOption from '../ui/ChoiceOption.vue'
@@ -77,7 +77,8 @@ function captureWrong() {
 function playPrompt() {
   unlockSpeak()
   if (props.tts !== false) {
-    speak(props.activity.promptSpeak, { lang: props.activity.promptLang })
+    const lang = props.activity.promptLang || getLessonSpeakLang()
+    speak(props.activity.promptSpeak, lang ? { lang } : undefined)
   }
   playSfx('tap')
 }

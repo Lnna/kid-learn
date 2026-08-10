@@ -26,7 +26,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, getCurrentInstance, nextTick } from 'vue'
 import type { TracingActivity } from '../../engine/types'
-import { speak } from '../../utils/tts'
+import { speak, getLessonSpeakLang } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 
@@ -101,7 +101,10 @@ function clear() {
 
 function say() {
   if (props.tts === false) return
-  speak(current.value.speak || current.value.char)
+  const item = current.value
+  const lang =
+    item.grid === 'english' ? 'en-US' : getLessonSpeakLang() || undefined
+  speak(item.speak || item.char, lang ? { lang } : undefined)
 }
 
 function finishOne() {

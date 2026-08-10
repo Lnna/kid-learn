@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { TapReadActivity } from '../../engine/types'
-import { speak, unlockSpeak, prefetchPinyinAudio } from '../../utils/tts'
+import { speak, unlockSpeak, prefetchPinyinAudio, getLessonSpeakLang } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 import ActivityIcon from '../ui/ActivityIcon.vue'
@@ -72,19 +72,22 @@ function onTap(item: TapReadActivity['items'][0]) {
     !!word &&
     (item.speakLang?.toLowerCase().startsWith('en') ||
       (!/[\u4e00-\u9fff]/.test(word) && /[a-zA-Z]/.test(word)))
-  const lang = item.speakLang || (enWord ? 'en-US' : undefined)
+  const lang =
+    item.speakLang || (enWord ? 'en-US' : getLessonSpeakLang()) || undefined
   // 先发音，再点效，减少手机端「点了要等一会才出声」
-  speak(letter, { lang })
+  speak(letter, lang ? { lang } : {})
   playSfx('tap')
   if (enWord && word) {
     wordTimer = setTimeout(() => {
       wordTimer = null
-      speak(word, { lang })
+      speak(word, lang ? { lang } : {})
     }, 1000)
   }
 }
 
 onMounted(() => {
+  // 英文课不预加载拼音音频
+  if (getLessonSpeakLang()?.toLowerCase().startsWith('en')) return
   const tokens = props.activity.items.map((it) => it.label.trim()).filter(Boolean)
   prefetchPinyinAudio(tokens)
 })

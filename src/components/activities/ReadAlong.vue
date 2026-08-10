@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { ReadAlongActivity, ReadAlongLine } from '../../engine/types'
-import { speak } from '../../utils/tts'
+import { speak, getLessonSpeakLang } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 
@@ -48,7 +48,8 @@ function read(line: ReadAlongLine) {
   }
   playSfx('tap')
   if (props.tts !== false) {
-    speak(line.speak || line.text, { lang: line.speakLang, rate: 0.85 })
+    const lang = line.speakLang || getLessonSpeakLang()
+    speak(line.speak || line.text, lang ? { lang, rate: 0.85 } : { rate: 0.85 })
   }
 }
 

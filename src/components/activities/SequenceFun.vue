@@ -43,7 +43,7 @@
 import { ref, computed, watch, onMounted, inject, type ComputedRef } from 'vue'
 import type { SequenceActivity, SubjectId } from '../../engine/types'
 import { addMistake } from '../../engine/mistakes'
-import { speak } from '../../utils/tts'
+import { speak, getLessonSpeakLang } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 import ActivityIcon from '../ui/ActivityIcon.vue'
@@ -132,7 +132,9 @@ function check() {
 }
 
 function say() {
-  if (props.tts !== false && current.value.speak) speak(current.value.speak)
+  if (props.tts === false || !current.value.speak) return
+  const lang = getLessonSpeakLang()
+  speak(current.value.speak, lang ? { lang } : undefined)
 }
 
 onMounted(say)

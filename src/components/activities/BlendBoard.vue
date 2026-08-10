@@ -36,7 +36,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { BlendActivity } from '../../engine/types'
-import { speak } from '../../utils/tts'
+import { speak, getLessonSpeakLang } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 
@@ -63,11 +63,9 @@ function revealTo(i: number) {
     revealed.value++
     playSfx('tap')
     if (props.tts !== false) {
-      // 拼音部件 → 一声定调汉字（由 speak/prepareText 展开）
-      speak(current.value.parts[i], {
-        lang: current.value.speakLang || 'zh-CN',
-        rate: 0.7,
-      })
+      // 有 speakLang / 英文课 → 英文；否则交 resolveLang（语文拼音走中文/本地预录）
+      const lang = current.value.speakLang || getLessonSpeakLang()
+      speak(current.value.parts[i], lang ? { lang, rate: 0.7 } : { rate: 0.7 })
     }
     if (revealed.value >= current.value.parts.length) {
       setTimeout(sayResult, 300)
@@ -78,7 +76,8 @@ function revealTo(i: number) {
 function sayResult() {
   playSfx('correct')
   if (props.tts !== false) {
-    speak(current.value.speak || current.value.result, { lang: current.value.speakLang })
+    const lang = current.value.speakLang || getLessonSpeakLang()
+    speak(current.value.speak || current.value.result, lang ? { lang } : undefined)
   }
 }
 

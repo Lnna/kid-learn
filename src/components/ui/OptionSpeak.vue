@@ -34,7 +34,8 @@ function onSpeak() {
   const raw = stripDecorations((props.text || '').trim())
   if (!raw) return
   unlockSpeak()
-  prefetchPinyinAudio([raw])
+  const isEn = !!props.lang && props.lang.toLowerCase().startsWith('en')
+  if (!isEn) prefetchPinyinAudio([raw])
   // 先发音再点效，避免点效抢占手机音频焦点造成「先等一下再出声」
   speak(raw, props.lang ? { lang: props.lang } : {})
   playSfx('tap')

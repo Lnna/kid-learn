@@ -63,7 +63,7 @@
 import { computed, ref, watch } from 'vue'
 import type { SpiritLetterMorphActivity } from '../../engine/types'
 import { areToolsUnlocked } from '../../engine/spiritStore'
-import { speak, unlockSpeak } from '../../utils/tts'
+import { speak, unlockSpeak, getLessonSpeakLang } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import { lightTap } from '../../utils/haptics'
 import { emitSpiritReact } from '../../utils/spiritMiss'
@@ -121,7 +121,7 @@ watch(
 function say() {
   unlockSpeak()
   if (props.tts === false) return
-  const lang = current.value.speakLang
+  const lang = current.value.speakLang || getLessonSpeakLang()
   speak(current.value.speak || current.value.letter, lang ? { lang } : undefined)
   playSfx('tap')
 }

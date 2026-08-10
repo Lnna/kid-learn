@@ -10,7 +10,7 @@
     </view>
     <OptionSpeak
       :text="speakText"
-      :lang="speakLang"
+      :lang="effectiveLang"
       :enabled="tts !== false"
       :size="variant === 'chip' ? 'sm' : 'md'"
     />
@@ -21,6 +21,7 @@
 import { computed } from 'vue'
 import OptionSpeak from './OptionSpeak.vue'
 import { isPinyinDrillToken } from '../../utils/pinyinSpeak'
+import { getLessonSpeakLang } from '../../utils/tts'
 
 const props = withDefaults(
   defineProps<{
@@ -40,9 +41,16 @@ const props = withDefaults(
 const emit = defineEmits<{ select: [] }>()
 
 const letter = computed(() => String.fromCharCode(65 + Math.max(0, props.index)))
-// 选项是拼音时朗读 label（TTS 内映为一声汉字），避免 speak 用错调字如「鹅」
+const effectiveLang = computed(
+  () => props.speakLang || getLessonSpeakLang() || undefined
+)
 const speakText = computed(() => {
   const label = (props.label || '').trim()
+  // 英文课/英文选项：不要按拼音 token 处理（a/b/c 与声母同形）
+  if (effectiveLang.value?.toLowerCase().startsWith('en')) {
+    return (props.speak || props.label || '').trim()
+  }
+  // 选项是拼音时朗读 label（TTS 内映为一声汉字），避免 speak 用错调字如「鹅」
   if (isPinyinDrillToken(label)) return label
   return (props.speak || props.label || '').trim()
 })

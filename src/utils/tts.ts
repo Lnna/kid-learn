@@ -37,9 +37,23 @@ let netTtsDown = false
 let netFailStreak = 0
 /** 共享 Audio 元素是否已在用户手势内解锁（iOS/部分安卓浏览器自动播放策略） */
 let audioUnlockOk = false
+/**
+ * 当前课时默认语种（由 lesson/play 按科目设置）。
+ * english → 拉丁文一律英文 TTS，不做拼音展开（含小写字母/拼读部件）。
+ */
+let lessonSpeakLang: string | undefined
 /** 极短静音 WAV，用于手势内解锁音频元素 */
 const SILENT_WAV =
   'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAA='
+
+/** 进入/离开课时时调用；english 传 'en-US'，其它科目传 undefined */
+export function setLessonSpeakLang(lang: string | undefined): void {
+  lessonSpeakLang = lang || undefined
+}
+
+export function getLessonSpeakLang(): string | undefined {
+  return lessonSpeakLang
+}
 
 function isAndroid(): boolean {
   // #ifdef H5
@@ -382,7 +396,13 @@ function resolveLang(text: string, options: SpeakOptions): string {
   // 含中文，或数字/算式（无拉丁长词）→ 中文引擎
   if (/[\u4e00-\u9fff]/.test(text)) return 'zh-CN'
   if (/[+\-−–×÷=＝?？]/.test(text) || /^\d+(\s|$)/.test(text)) return 'zh-CN'
-  // 声母/韵母/音节（zh、an、mā）→ 中文，避免读成英文字母
+  // 英文课程：凡拉丁文一律英文（含小写 a/b/c、拼读部件），绝不走拼音
+  if (lessonSpeakLang?.toLowerCase().startsWith('en') && /[a-zA-Z]/.test(text)) {
+    return 'en-US'
+  }
+  // 大写英文字母（单个或空格分隔，如 A / A B C）→ 英文；语文拼音一律小写
+  if (/^[A-Z](?:\s+[A-Z])*$/.test(text.trim())) return 'en-US'
+  // 仅非英文课：声母/韵母/音节（zh、an、mā）→ 中文拼音 TTS / 本地预录
   if (isMostlyPinyinLatin(text)) return 'zh-CN'
   if (/[a-zA-Z]/.test(text)) return 'en-US'
   return 'zh-CN'
@@ -391,6 +411,10 @@ function resolveLang(text: string, options: SpeakOptions): string {
 function prepareText(text: string, lang: string): string {
   const trimmed = text.trim()
   if (!trimmed) return ''
+  // 英文：绝不按拼音展开（否则 A→阿、b→波、pen→盆）
+  if (lang.toLowerCase().startsWith('en')) {
+    return stripDecorations(trimmed)
+  }
   // 拼音 → 呼读/一声汉字（b→波，e→婀）
   const expanded = expandPinyinForSpeech(trimmed)
   if (lang.toLowerCase().startsWith('zh') || isMostlyPinyinLatin(trimmed)) {

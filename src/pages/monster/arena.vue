@@ -137,7 +137,7 @@ import {
 import { SUBJECT_MAP } from '../../engine/catalog'
 import { loadProgress } from '../../engine/progress'
 import type { SubjectId } from '../../engine/types'
-import { speak, unlockSpeak, stopSpeak } from '../../utils/tts'
+import { speak, unlockSpeak, stopSpeak, setLessonSpeakLang } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import MonsterBuddy from '../../components/monster/MonsterBuddy.vue'
 import ChoiceOption from '../../components/ui/ChoiceOption.vue'
@@ -165,6 +165,7 @@ function subjectName(id: SubjectId) {
 
 function goHome() {
   stopSpeak()
+  setLessonSpeakLang(undefined)
   uni.navigateBack({
     fail: () => uni.reLaunch({ url: '/pages/index/index' }),
   })
@@ -172,6 +173,7 @@ function goHome() {
 
 function openFight(m: MistakeItem) {
   unlockSpeak()
+  setLessonSpeakLang(m.subjectId === 'english' ? 'en-US' : undefined)
   active.value = { ...m, options: m.options ? m.options.map((o) => ({ ...o })) : [] }
   picked.value = ''
   revealed.value = false
@@ -187,6 +189,7 @@ function openFight(m: MistakeItem) {
 
 function closeFight() {
   stopSpeak()
+  setLessonSpeakLang(undefined)
   active.value = null
   pose.value = 'idle'
   feedback.value = ''
