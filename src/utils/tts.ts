@@ -922,6 +922,8 @@ async function playUrlAudio(url: string, waitEnd = false, epoch = 0): Promise<bo
 
     const el = (isWeChat() ? audioEl : netEl) as HTMLAudioElement | null
     if (!el) return true
+    // 极短音频（如字母 A）可能在 doPlay 返回前已 ended，再等 ended 会空等到超时
+    if (el.ended) return true
     await new Promise<void>((resolve) => {
       let done = false
       const finish = () => {
@@ -934,6 +936,11 @@ async function playUrlAudio(url: string, waitEnd = false, epoch = 0): Promise<bo
       }
       el.addEventListener('ended', finish)
       el.addEventListener('error', finish)
+      // 已播完或即将结束
+      if (el.ended || (Number.isFinite(el.duration) && el.duration > 0 && el.currentTime >= el.duration - 0.05)) {
+        finish()
+        return
+      }
       const timer = setTimeout(finish, 12000)
     })
     return true
