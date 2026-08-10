@@ -21,6 +21,11 @@ type SpeakOptions = {
    * 字母课（A→apple）不要开这个。
    */
   keepLetterLiteral?: boolean
+  /**
+   * speakAsync 最长等待（ms）。字母名 TTS 常带长尾音静音，
+   * 字母→单词连播时应设短上限，避免间隔被拖到数秒。
+   */
+  maxWaitMs?: number
 }
 
 const CACHE_NAME = 'kidlearn-tts-v1'
@@ -431,9 +436,13 @@ function prepareText(text: string, lang: string, options: SpeakOptions = {}): st
   return stripDecorations(expanded === trimmed ? trimmed : expanded)
 }
 
-function waitEndTimeoutMs(text: string, rate?: number): number {
+function waitEndTimeoutMs(text: string, rate?: number, maxWaitMs?: number): number {
   const r = rate && rate > 0 ? rate : 0.92
-  return Math.min(12000, Math.max(2800, (900 + text.length * 320) / r))
+  const estimated = (900 + text.length * 320) / r
+  // 短词默认不要抬到 2.8s（字母名连播会被拖垮）
+  const softCap = text.length <= 16 ? Math.min(3500, Math.max(1000, estimated + 300)) : Math.min(12000, Math.max(2800, estimated))
+  if (maxWaitMs != null && maxWaitMs > 0) return Math.min(softCap, maxWaitMs)
+  return softCap
 }
 
 function isInterruptError(err: unknown): boolean {
@@ -507,7 +516,7 @@ function speakWeb(text: string, options: SpeakOptions, waitEnd = false, epoch = 
             if (stale() || isInterruptError(e)) done(true)
             else done(false)
           }
-          setTimeout(() => done(true), waitEndTimeoutMs(text, options.rate))
+          setTimeout(() => done(true), waitEndTimeoutMs(text, options.rate, options.maxWaitMs))
         } else {
           let heardStart = false
           u.onstart = () => {
@@ -901,7 +910,12 @@ async function playYoudaoWeChat(text: string, lang: string, epoch: number): Prom
   return withWeChatAudioGate(runChain)
 }
 
-async function playUrlAudio(url: string, waitEnd = false, epoch = 0): Promise<boolean> {
+async function playUrlAudio(
+  url: string,
+  waitEnd = false,
+  epoch = 0,
+  maxWaitMs?: number
+): Promise<boolean> {
   // #ifdef H5
   try {
     if (epoch && epoch !== speakEpoch) return true
@@ -1007,7 +1021,7 @@ async function playUrlAudio(url: string, waitEnd = false, epoch = 0): Promise<bo
         finish()
         return
       }
-      const timer = setTimeout(finish, 12000)
+      const timer = setTimeout(finish, maxWaitMs && maxWaitMs > 0 ? maxWaitMs : 12000)
     })
     return true
   } catch (e) {
@@ -1035,12 +1049,12 @@ async function speakFallback(
   const objectUrl = await loadTtsObjectUrl(text, lang, spd)
   if (objectUrl) {
     // 内存缓存的 blob 不要 revoke
-    return playUrlAudio(objectUrl, waitEnd, epoch)
+    return playUrlAudio(objectUrl, waitEnd, epoch, options.maxWaitMs)
   }
 
   // 代理不可用时：非微信再试百度直链（无法稳缓存，仅兜底）
   if (!isWeChat()) {
-    return playUrlAudio(baiduTtsUrl(text, lang, spd), waitEnd, epoch)
+    return playUrlAudio(baiduTtsUrl(text, lang, spd), waitEnd, epoch, options.maxWaitMs)
   }
   return false
 }
@@ -1200,14 +1214,20 @@ export function speak(text: string, options: SpeakOptions = {}): void {
  */
 export function prefetchSpeak(text: string, options: SpeakOptions = {}): void {
   // #ifdef H5
+  void warmupSpeak(text, options)
+  // #endif
+}
+
+/** 等待该句进入内存缓存（已缓存则立刻 resolve） */
+export async function warmupSpeak(text: string, options: SpeakOptions = {}): Promise<void> {
+  // #ifdef H5
   const trimmed = (text || '').trim()
   if (!trimmed || trimmed.length > 60) return
   const lang = resolveLang(trimmed, options)
-  // 本地拼音预录本身很快，不必占代理
   if (!lang.toLowerCase().startsWith('en') && pinyinLocalAudioUrl(trimmed)) return
   const say = prepareText(trimmed, lang, options)
   if (!say || say.length > 60 || hasUnsafeSpeakChars(say)) return
-  void loadTtsObjectUrl(say, lang, ttsSpd(options.rate))
+  await loadTtsObjectUrl(say, lang, ttsSpd(options.rate))
   // #endif
 }
 
@@ -1222,9 +1242,14 @@ export function speakAsync(text: string, options: SpeakOptions = {}): Promise<vo
     audioUnlockOk || (isWeChat() && isAndroid())
       ? Promise.resolve()
       : ensureAudioUnlocked()
-  return prep
-    .then(() => speakOnce(trimmed, options, true))
-    .then(() => undefined)
+  return prep.then(async () => {
+    const play = speakOnce(trimmed, options, true)
+    if (options.maxWaitMs && options.maxWaitMs > 0) {
+      await Promise.race([play, delay(options.maxWaitMs)])
+    } else {
+      await play
+    }
+  })
   // #endif
   // #ifndef H5
   return Promise.resolve()

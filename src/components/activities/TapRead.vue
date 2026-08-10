@@ -31,7 +31,15 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { TapReadActivity } from '../../engine/types'
-import { speak, speakAsync, unlockSpeak, prefetchPinyinAudio, getLessonSpeakLang, prefetchSpeak } from '../../utils/tts'
+import {
+  speak,
+  speakAsync,
+  unlockSpeak,
+  prefetchPinyinAudio,
+  getLessonSpeakLang,
+  prefetchSpeak,
+  warmupSpeak,
+} from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 import ActivityIcon from '../ui/ActivityIcon.vue'
@@ -44,8 +52,20 @@ const explored = ref(new Set<string>())
 /** 连点换卡时作废上一段「字母→单词」链 */
 let tapGen = 0
 
+/** 字母名有效语音大约时长；TTS 文件常带长尾音，不能干等 ended */
+const LETTER_VOICE_MAX_MS = 750
+/** 字母与单词之间的静音间隔 */
+const LETTER_WORD_GAP_MS = 500
+
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
+}
+
+function isEnglishItem(item: TapReadActivity['items'][0]): boolean {
+  return (
+    !!item.speakLang?.toLowerCase().startsWith('en') ||
+    !!getLessonSpeakLang()?.toLowerCase().startsWith('en')
+  )
 }
 
 /** 主发音文本：拼音用 label；「A a」等用 speak 单字母 */
@@ -57,18 +77,28 @@ function primarySpeakText(item: TapReadActivity['items'][0]): string {
 
 /**
  * 英文 letters：单个字母 + 英文单词副标题 → 先字母，停 0.5s，再单词。
- * 不含：拼音；中文释义；拼读标注（ship + sh）；整词点读。
+ * 覆盖 U1 全部 letters / letter sounds 点读（A-E … U-Z、A-M、N-Z）。
  */
-function isLetterThenWord(spoken: string, subLabel: string | undefined, speakLang?: string): boolean {
+function isLetterThenWord(spoken: string, subLabel: string | undefined, item: TapReadActivity['items'][0]): boolean {
   const word = (subLabel || '').trim()
   if (!word || /[\u4e00-\u9fff]/.test(word)) return false
-  const en =
-    !!speakLang?.toLowerCase().startsWith('en') ||
-    !!getLessonSpeakLang()?.toLowerCase().startsWith('en')
-  if (!en) return false
+  if (!isEnglishItem(item)) return false
   if (!/^[A-Za-z]$/.test(spoken.trim())) return false
-  // 至少一个长度为 2+ 的英文词（支持 ice cream）
   return /^[A-Za-z][A-Za-z\s'.-]*$/.test(word) && /[A-Za-z]{2,}/.test(word.replace(/[\s'.-]/g, ''))
+}
+
+function speakOpts(lang: string | undefined) {
+  return lang ? { lang } : {}
+}
+
+function prefetchEnglishItem(item: TapReadActivity['items'][0]) {
+  const lang = item.speakLang || 'en-US'
+  const primary = primarySpeakText(item)
+  if (primary) prefetchSpeak(primary, { lang })
+  const sub = item.subLabel?.trim()
+  if (sub && !/[\u4e00-\u9fff]/.test(sub) && /[A-Za-z]/.test(sub)) {
+    prefetchSpeak(sub, { lang })
+  }
 }
 
 async function onTap(item: TapReadActivity['items'][0]) {
@@ -88,15 +118,19 @@ async function onTap(item: TapReadActivity['items'][0]) {
     item.speakLang ||
     (getLessonSpeakLang()?.toLowerCase().startsWith('en') ? 'en-US' : undefined) ||
     undefined
-  const opts = lang ? { lang } : {}
+  const opts = speakOpts(lang)
 
   playSfx('tap')
 
-  if (isLetterThenWord(spoken, word, item.speakLang)) {
-    // 等字母播完 → 半秒 → 再读单词；换卡则中断链
-    await speakAsync(spoken, opts)
+  if (isLetterThenWord(spoken, word, item)) {
+    // 先保证字母+单词都在缓存（P-T 等后半关与 A-E 同等速度）
+    await Promise.all([warmupSpeak(spoken, opts), warmupSpeak(word!, opts)])
     if (gen !== tapGen) return
-    await delay(500)
+
+    // 字母名：最多等 LETTER_VOICE_MAX_MS（切开 TTS 尾音静音），再精确隔 0.5s 读单词
+    await speakAsync(spoken, { ...opts, maxWaitMs: LETTER_VOICE_MAX_MS })
+    if (gen !== tapGen) return
+    await delay(LETTER_WORD_GAP_MS)
     if (gen !== tapGen) return
     await speakAsync(word!, opts)
     return
@@ -107,19 +141,15 @@ async function onTap(item: TapReadActivity['items'][0]) {
 }
 
 onMounted(() => {
-  // 英文课不预加载拼音音频
-  if (getLessonSpeakLang()?.toLowerCase().startsWith('en')) {
-    for (const it of props.activity.items) {
-      const lang = it.speakLang || 'en-US'
-      const primary = (/^[a-zA-ZüÜvāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]+$/.test(it.label.trim())
-        ? it.label
-        : it.speak || it.label
-      ).trim()
-      if (primary) prefetchSpeak(primary, { lang })
-      const sub = it.subLabel?.trim()
-      if (sub && !/[\u4e00-\u9fff]/.test(sub) && /^[A-Za-z]/.test(sub)) {
-        prefetchSpeak(sub, { lang })
-      }
+  const enLesson =
+    !!getLessonSpeakLang()?.toLowerCase().startsWith('en') ||
+    props.activity.items.some((it) => it.speakLang?.toLowerCase().startsWith('en'))
+
+  if (enLesson) {
+    for (const it of props.activity.items) prefetchEnglishItem(it)
+    // 预热全部字母名，后半关 P-T / U-Z 点字母时与 A-E 一样有缓存
+    for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+      prefetchSpeak(ch, { lang: 'en-US' })
     }
     return
   }
