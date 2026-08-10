@@ -592,61 +592,119 @@ function proxyTtsUrl(text: string, lang: string, spd = 3): string {
   return `/api/tts?text=${q}&lang=${lan}&spd=${spd}`
 }
 
-/** 百度直链：仅非微信备用 */
+/** 百度直链：仅非微信且代理失败时的最后备用（无法可靠 fetch 缓存） */
 function baiduTtsUrl(text: string, lang: string, spd = 3): string {
   const q = encodeURIComponent(text.slice(0, 60))
   const lan = lang.toLowerCase().startsWith('en') ? 'en' : 'zh'
   return `https://fanyi.baidu.com/gettts?lan=${lan}&text=${q}&spd=${spd}&source=web`
 }
 
+/** 内存中的 blob: URL，同一句再次点击可立刻播 */
+const ttsMemCache = new Map<string, string>()
+/** 同一 key 并发只打一次网络 */
+const ttsInflight = new Map<string, Promise<string | null>>()
+const TTS_MEM_MAX = 100
+
+function ttsCacheKey(text: string, lang: string, spd: number): string {
+  return `${lang}|${spd}|${text.slice(0, 60)}`
+}
+
+function rememberTtsObjectUrl(key: string, objectUrl: string): string {
+  if (ttsMemCache.has(key)) {
+    const prev = ttsMemCache.get(key)!
+    if (prev !== objectUrl) {
+      try {
+        URL.revokeObjectURL(objectUrl)
+      } catch {
+        /* ignore */
+      }
+      return prev
+    }
+    return objectUrl
+  }
+  ttsMemCache.set(key, objectUrl)
+  while (ttsMemCache.size > TTS_MEM_MAX) {
+    const oldest = ttsMemCache.keys().next().value as string | undefined
+    if (!oldest) break
+    const oldUrl = ttsMemCache.get(oldest)
+    ttsMemCache.delete(oldest)
+    if (oldUrl) {
+      try {
+        URL.revokeObjectURL(oldUrl)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return objectUrl
+}
+
+function isValidTtsBody(body: ArrayBuffer): boolean {
+  if (!body || body.byteLength < 200) return false
+  const head = String.fromCharCode(...new Uint8Array(body.slice(0, 1)))
+  return head !== '{' && head !== '['
+}
+
 /**
- * 从自建代理下载 MP3 → Cache API 本地缓存 → 返回 blob: URL。
- * 再次播放同一句直接读缓存，不打百度。
+ * 同源 /api/tts → Cache API → 内存 blob。
+ * 命中内存时几乎零延迟；勿在播放后 revoke（否则每次都要重下）。
  */
-async function loadProxyTtsObjectUrl(
+async function loadTtsObjectUrl(
   text: string,
   lang: string,
   spd = 3
 ): Promise<string | null> {
   // #ifdef H5
-  const url = proxyTtsUrl(text, lang, spd)
-  try {
-    let body: ArrayBuffer | null = null
-    if (typeof caches !== 'undefined') {
-      const cache = await caches.open(CACHE_NAME)
-      const hit = await cache.match(url)
-      if (hit) {
-        body = await hit.arrayBuffer()
+  const key = ttsCacheKey(text, lang, spd)
+  const mem = ttsMemCache.get(key)
+  if (mem) return mem
+
+  const pending = ttsInflight.get(key)
+  if (pending) return pending
+
+  const job = (async (): Promise<string | null> => {
+    const url = proxyTtsUrl(text, lang, spd)
+    try {
+      let body: ArrayBuffer | null = null
+      if (typeof caches !== 'undefined') {
+        const cache = await caches.open(CACHE_NAME)
+        const hit = await cache.match(url)
+        if (hit) {
+          body = await hit.arrayBuffer()
+        } else {
+          const res = await fetch(url, { credentials: 'omit' })
+          if (!res.ok) return null
+          body = await res.arrayBuffer()
+          if (!isValidTtsBody(body)) return null
+          await cache.put(
+            url,
+            new Response(body.slice(0), {
+              status: 200,
+              headers: {
+                'Content-Type': 'audio/mpeg',
+                'Cache-Control': 'public, max-age=2592000',
+              },
+            })
+          )
+        }
       } else {
         const res = await fetch(url, { credentials: 'omit' })
         if (!res.ok) return null
         body = await res.arrayBuffer()
-        if (!body || body.byteLength < 200) return null
-        // 拒绝 JSON 错误体
-        const head = String.fromCharCode(...new Uint8Array(body.slice(0, 1)))
-        if (head === '{' || head === '[') return null
-        await cache.put(
-          url,
-          new Response(body.slice(0), {
-            status: 200,
-            headers: {
-              'Content-Type': 'audio/mpeg',
-              'Cache-Control': 'public, max-age=2592000',
-            },
-          })
-        )
       }
-    } else {
-      const res = await fetch(url, { credentials: 'omit' })
-      if (!res.ok) return null
-      body = await res.arrayBuffer()
+      if (!isValidTtsBody(body!)) return null
+      const objectUrl = URL.createObjectURL(new Blob([body!], { type: 'audio/mpeg' }))
+      return rememberTtsObjectUrl(key, objectUrl)
+    } catch (e) {
+      console.warn('[tts] download failed', e)
+      return null
+    } finally {
+      ttsInflight.delete(key)
     }
-    if (!body || body.byteLength < 200) return null
-    return URL.createObjectURL(new Blob([body], { type: 'audio/mpeg' }))
-  } catch (e) {
-    console.warn('[tts] proxy download failed', e)
-    return null
-  }
+  })()
+
+  ttsInflight.set(key, job)
+  return job
   // #endif
   // #ifndef H5
   return null
@@ -973,22 +1031,18 @@ async function speakFallback(
   const lang = resolveLang(text, options)
   const spd = ttsSpd(options.rate)
 
-  // Chrome / 夸克等：百度直链可播长句，无需占代理流量
+  // 统一走同源代理 + 内存/Cache：再次点击同一句可立刻出声
+  const objectUrl = await loadTtsObjectUrl(text, lang, spd)
+  if (objectUrl) {
+    // 内存缓存的 blob 不要 revoke
+    return playUrlAudio(objectUrl, waitEnd, epoch)
+  }
+
+  // 代理不可用时：非微信再试百度直链（无法稳缓存，仅兜底）
   if (!isWeChat()) {
     return playUrlAudio(baiduTtsUrl(text, lang, spd), waitEnd, epoch)
   }
-
-  // 微信：直链被拦 → 自建代理下载整句 → Cache API 本地缓存 → blob 播放
-  const objectUrl = await loadProxyTtsObjectUrl(text, lang, spd)
-  if (!objectUrl) return false
-  // blob 不可在 play 刚开始就 revoke，否则会中途无声；等播完再释放
-  const ok = await playUrlAudio(objectUrl, true, epoch)
-  try {
-    URL.revokeObjectURL(objectUrl)
-  } catch {
-    /* ignore */
-  }
-  return ok
+  return false
 }
 
 /**
@@ -1129,8 +1183,8 @@ export function speak(text: string, options: SpeakOptions = {}): void {
 
   void (async () => {
     unlockSpeak()
-    // 手机微信不要先 await 预解锁，避免占掉点击手势
-    if (!(isWeChat() && isAndroid())) {
+    // 已解锁则不要 await，避免每次点击空等一拍
+    if (!audioUnlockOk && !(isWeChat() && isAndroid())) {
       await ensureAudioUnlocked()
     }
     const ok = await speakOnce(trimmed, options, false)
@@ -1138,6 +1192,22 @@ export function speak(text: string, options: SpeakOptions = {}): void {
       tipOnce(failureTip(resolveLang(trimmed, options)))
     }
   })()
+  // #endif
+}
+
+/**
+ * 预热网络 TTS 到内存（选项卡出现时调用），点击时可立刻播。
+ */
+export function prefetchSpeak(text: string, options: SpeakOptions = {}): void {
+  // #ifdef H5
+  const trimmed = (text || '').trim()
+  if (!trimmed || trimmed.length > 60) return
+  const lang = resolveLang(trimmed, options)
+  // 本地拼音预录本身很快，不必占代理
+  if (!lang.toLowerCase().startsWith('en') && pinyinLocalAudioUrl(trimmed)) return
+  const say = prepareText(trimmed, lang, options)
+  if (!say || say.length > 60 || hasUnsafeSpeakChars(say)) return
+  void loadTtsObjectUrl(say, lang, ttsSpd(options.rate))
   // #endif
 }
 
@@ -1149,7 +1219,9 @@ export function speakAsync(text: string, options: SpeakOptions = {}): Promise<vo
   if (!trimmed) return Promise.resolve()
   unlockSpeak()
   const prep =
-    isWeChat() && isAndroid() ? Promise.resolve() : ensureAudioUnlocked()
+    audioUnlockOk || (isWeChat() && isAndroid())
+      ? Promise.resolve()
+      : ensureAudioUnlocked()
   return prep
     .then(() => speakOnce(trimmed, options, true))
     .then(() => undefined)

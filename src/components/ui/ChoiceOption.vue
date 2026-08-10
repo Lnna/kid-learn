@@ -18,10 +18,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import OptionSpeak from './OptionSpeak.vue'
 import { isPinyinDrillToken } from '../../utils/pinyinSpeak'
-import { getLessonSpeakLang } from '../../utils/tts'
+import { getLessonSpeakLang, prefetchSpeak } from '../../utils/tts'
 
 const props = withDefaults(
   defineProps<{
@@ -54,6 +54,16 @@ const speakText = computed(() => {
   if (isPinyinDrillToken(label)) return label
   return (props.speak || props.label || '').trim()
 })
+
+// 选项一出现就预拉 TTS，点喇叭时不必再等网络
+watch(
+  speakText,
+  (t) => {
+    if (props.tts === false || !t) return
+    prefetchSpeak(t, effectiveLang.value ? { lang: effectiveLang.value } : {})
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped lang="scss">

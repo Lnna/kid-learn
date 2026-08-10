@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { TapReadActivity } from '../../engine/types'
-import { speak, speakAsync, unlockSpeak, prefetchPinyinAudio, getLessonSpeakLang } from '../../utils/tts'
+import { speak, speakAsync, unlockSpeak, prefetchPinyinAudio, getLessonSpeakLang, prefetchSpeak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import KButton from '../ui/KButton.vue'
 import ActivityIcon from '../ui/ActivityIcon.vue'
@@ -108,7 +108,21 @@ async function onTap(item: TapReadActivity['items'][0]) {
 
 onMounted(() => {
   // 英文课不预加载拼音音频
-  if (getLessonSpeakLang()?.toLowerCase().startsWith('en')) return
+  if (getLessonSpeakLang()?.toLowerCase().startsWith('en')) {
+    for (const it of props.activity.items) {
+      const lang = it.speakLang || 'en-US'
+      const primary = (/^[a-zA-ZüÜvāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]+$/.test(it.label.trim())
+        ? it.label
+        : it.speak || it.label
+      ).trim()
+      if (primary) prefetchSpeak(primary, { lang })
+      const sub = it.subLabel?.trim()
+      if (sub && !/[\u4e00-\u9fff]/.test(sub) && /^[A-Za-z]/.test(sub)) {
+        prefetchSpeak(sub, { lang })
+      }
+    }
+    return
+  }
   const tokens = props.activity.items.map((it) => it.label.trim()).filter(Boolean)
   prefetchPinyinAudio(tokens)
 })

@@ -34,7 +34,7 @@
 import { ref, onMounted, inject, type ComputedRef } from 'vue'
 import type { ListenChooseActivity, SubjectId } from '../../engine/types'
 import { addMistake } from '../../engine/mistakes'
-import { speak, unlockSpeak, getLessonSpeakLang } from '../../utils/tts'
+import { speak, unlockSpeak, getLessonSpeakLang, prefetchSpeak } from '../../utils/tts'
 import { playSfx } from '../../utils/sfx'
 import ActivityIcon from '../ui/ActivityIcon.vue'
 import ChoiceOption from '../ui/ChoiceOption.vue'
@@ -98,7 +98,11 @@ function choose(id: string) {
   }, 700)
 }
 
-onMounted(() => setTimeout(playPrompt, 400))
+onMounted(() => {
+  const lang = props.activity.promptLang || getLessonSpeakLang()
+  prefetchSpeak(props.activity.promptSpeak, lang ? { lang } : {})
+  setTimeout(playPrompt, 400)
+})
 </script>
 
 <style scoped lang="scss">
