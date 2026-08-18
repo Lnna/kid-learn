@@ -71,7 +71,7 @@ function isEnglishItem(item: TapReadActivity['items'][0]): boolean {
 /** 主发音文本：拼音用 label；「A a」等用 speak 单字母 */
 function primarySpeakText(item: TapReadActivity['items'][0]): string {
   const label = (item.label || '').trim()
-  if (/^[a-zA-ZüÜvāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]+$/.test(label)) return label
+  if (/^[a-zA-ZüÜvɑāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ\u0300-\u036f]+$/.test(label)) return label
   return (item.speak || item.label || '').trim()
 }
 

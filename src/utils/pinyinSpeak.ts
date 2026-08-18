@@ -5,11 +5,12 @@
  * - 源文件可放 audio/，需要时只同步这 5 个到 src/static/audio/pinyin/
  */
 
-/** 去声调、统一 ü（须在 NFD 去音符之前处理，否则 ü 会变成 u） */
+/** 去声调、统一 ü（须在 NFD 去音符之前处理，否则 ü 会变成 u）；教材 ɑ 亦归一为 a */
 export function normalizePinyinKey(raw: string): string {
   return raw
     .trim()
     .replace(/ü|Ü|ｖ/g, 'v')
+    .replace(/ɑ/g, 'a')
     .normalize('NFD')
     .replace(/u\u0308/gi, 'v')
     .replace(/[\u0300-\u036f]/g, '')
@@ -679,11 +680,15 @@ export function firstToneSpeakHan(token: string): string | null {
   return pinyinTtsText(token)
 }
 
+/** 拼音拉丁字（含教材体 ɑ 与组合声调符） */
+const PINYIN_LATIN_RE = /[a-zA-ZüÜvɑāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ\u0300-\u036f]+/g
+const PINYIN_LATIN_ONLY_RE = /^[a-zA-ZüÜvɑāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ\u0300-\u036f]+$/
+
 /** 整段是否为单个可识别拼音 token（声母/韵母/音节） */
 export function isPinyinDrillToken(text: string): boolean {
   const t = text.trim()
   if (!t || /\s/.test(t) || /[\u4e00-\u9fff0-9]/.test(t)) return false
-  if (!/^[a-zA-ZüÜvāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]+$/.test(t)) return false
+  if (!PINYIN_LATIN_ONLY_RE.test(t)) return false
   return toPinyinDrillBase(t) != null
 }
 
@@ -695,7 +700,7 @@ export function lookupPinyinSpeak(token: string): string | null {
 /** 句子/点读里的拼音 → TTS 可读形式 */
 export function expandPinyinForSpeech(text: string): string {
   if (!text) return text
-  return text.replace(/[a-zA-ZüÜvāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]+/g, (tok) => {
+  return text.replace(PINYIN_LATIN_RE, (tok) => {
     return pinyinTtsText(tok) || tok
   })
 }
@@ -704,7 +709,7 @@ export function expandPinyinForSpeech(text: string): string {
 export function isMostlyPinyinLatin(text: string): boolean {
   const t = text.trim()
   if (!t || /[\u4e00-\u9fff]/.test(t)) return false
-  const parts = t.match(/[a-zA-ZüÜvāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]+/g)
+  const parts = t.match(PINYIN_LATIN_RE)
   if (!parts?.length) return false
   return parts.every((p) => toPinyinDrillBase(p) != null)
 }
