@@ -3,7 +3,6 @@ import {
   tapRead,
   listenChoose,
   dragMatch,
-  tracing,
   blend,
   quiz,
   sequence,
@@ -1158,36 +1157,6 @@ const u2 = unit(
         },
       ]),
     ], '自然家庭身体常用字'),
-
-    level(
-      'chinese-2-07',
-      '复杂字笔顺描红',
-      [
-      tracing('描复杂汉字', [
-        { id: 't1', char: '春', speak: '春', grid: 'tian' },
-        { id: 't2', char: '秋', speak: '秋', grid: 'tian' },
-        { id: 't3', char: '明', speak: '明', grid: 'tian' },
-        { id: 't4', char: '朋', speak: '朋', grid: 'tian' },
-        { id: 't5', char: '看', speak: '看', grid: 'tian' },
-        { id: 't6', char: '听', speak: '听', grid: 'tian' },
-      ]),
-      sequence('「明」的笔顺', [
-        {
-          id: 's1',
-          prompt: '先写左边的「日」，再写右边的「月」',
-          items: [
-            { id: 'r', label: '日（左）' },
-            { id: 'y', label: '月（右）' },
-          ],
-          answerOrder: ['r', 'y'],
-          speak: '先日后月',
-        },
-      ]),
-      tracing('描说写', [
-        { id: 't7', char: '说', speak: '说', grid: 'tian' },
-        { id: 't8', char: '写', speak: '写', grid: 'tian' },
-      ]),
-    ], '春秋明朋看听说写'),
 
     level(
       'chinese-2-08',

@@ -2,7 +2,6 @@ import {
   tapRead,
   listenChoose,
   dragMatch,
-  tracing,
   quiz,
   sequence,
   spiritLetterMorph,
@@ -28,13 +27,6 @@ export const englishUnit1 = unit(
         ],
         '点字母，听字母和单词'
       ),
-      tracing('描字母 A-E', [
-        { id: 'ta', char: 'A', speak: 'A', grid: 'english' },
-        { id: 'tb', char: 'B', speak: 'B', grid: 'english' },
-        { id: 'tc', char: 'C', speak: 'C', grid: 'english' },
-        { id: 'td', char: 'D', speak: 'D', grid: 'english' },
-        { id: 'te', char: 'E', speak: 'E', grid: 'english' },
-      ]),
       listenChoose(
         '听字母',
         'C',
@@ -68,13 +60,6 @@ export const englishUnit1 = unit(
         ],
         '点字母，听字母和单词'
       ),
-      tracing('描字母 F-J', [
-        { id: 'tf', char: 'F', speak: 'F', grid: 'english' },
-        { id: 'tg', char: 'G', speak: 'G', grid: 'english' },
-        { id: 'th', char: 'H', speak: 'H', grid: 'english' },
-        { id: 'ti', char: 'I', speak: 'I', grid: 'english' },
-        { id: 'tj', char: 'J', speak: 'J', grid: 'english' },
-      ]),
       dragMatch('字母和单词', [
         { id: 'p1', left: 'F', right: 'fish' },
         { id: 'p2', left: 'G', right: 'goat' },
@@ -96,13 +81,6 @@ export const englishUnit1 = unit(
         ],
         '点字母，听字母和单词'
       ),
-      tracing('描字母 K-O', [
-        { id: 'tk', char: 'K', speak: 'K', grid: 'english' },
-        { id: 'tl', char: 'L', speak: 'L', grid: 'english' },
-        { id: 'tm', char: 'M', speak: 'M', grid: 'english' },
-        { id: 'tn', char: 'N', speak: 'N', grid: 'english' },
-        { id: 'to', char: 'O', speak: 'O', grid: 'english' },
-      ]),
       listenChoose(
         '听字母选一选',
         'M',
@@ -128,13 +106,6 @@ export const englishUnit1 = unit(
         ],
         '点字母，听字母和单词'
       ),
-      tracing('描字母 P-T', [
-        { id: 'tp', char: 'P', speak: 'P', grid: 'english' },
-        { id: 'tq', char: 'Q', speak: 'Q', grid: 'english' },
-        { id: 'tr', char: 'R', speak: 'R', grid: 'english' },
-        { id: 'ts', char: 'S', speak: 'S', grid: 'english' },
-        { id: 'tt', char: 'T', speak: 'T', grid: 'english' },
-      ]),
       quiz('字母小测', [
         {
           id: 'q1',
@@ -182,14 +153,6 @@ export const englishUnit1 = unit(
         ],
         '点字母，听字母和单词'
       ),
-      tracing('描字母 U-Z', [
-        { id: 'tu', char: 'U', speak: 'U', grid: 'english' },
-        { id: 'tv', char: 'V', speak: 'V', grid: 'english' },
-        { id: 'tw', char: 'W', speak: 'W', grid: 'english' },
-        { id: 'tx', char: 'X', speak: 'X', grid: 'english' },
-        { id: 'ty', char: 'Y', speak: 'Y', grid: 'english' },
-        { id: 'tz', char: 'Z', speak: 'Z', grid: 'english' },
-      ]),
       sequence('字母顺序 A B C D', [
         {
           id: 's1',
@@ -352,5 +315,5 @@ export const englishUnit1 = unit(
       ]),
     ], '大小写与字母表'),
   ],
-  '26 个字母认读、发音与描红'
+  '26 个字母认读与发音'
 )

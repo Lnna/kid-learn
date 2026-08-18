@@ -3,7 +3,6 @@ import {
   tapRead,
   listenChoose,
   dragMatch,
-  tracing,
   quiz,
   sequence,
   spiritStretchRuler,
@@ -58,11 +57,6 @@ const u1 = unit(
         { id: 'n15', label: '15', speak: '十五' },
         { id: 'n18', label: '18', speak: '十八' },
         { id: 'n20', label: '20', speak: '二十', icon: '2️⃣0️⃣' },
-      ]),
-      tracing('描一描十几', [
-        { id: 't11', char: '11', speak: '十一', grid: 'number' },
-        { id: 't15', char: '15', speak: '十五', grid: 'number' },
-        { id: 't20', char: '20', speak: '二十', grid: 'number' },
       ]),
       quiz('十位与个位', [
         {
