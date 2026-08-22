@@ -83,10 +83,6 @@ function refresh() {
 }
 
 function openLevel(levelId: string) {
-  if (!unlocked.value[levelId]) {
-    uni.showToast({ title: '先完成前面的关卡哦', icon: 'none' })
-    return
-  }
   uni.navigateTo({
     url: `/pages/lesson/play?subject=${subjectId.value}&level=${levelId}`,
   })

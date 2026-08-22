@@ -84,14 +84,11 @@ export function recordLevelResult(
 }
 
 export function isLevelUnlocked(
-  subjectId: SubjectId,
-  levelIds: string[],
-  levelId: string
+  _subjectId: SubjectId,
+  _levelIds: string[],
+  _levelId: string
 ): boolean {
-  const idx = levelIds.indexOf(levelId)
-  if (idx <= 0) return true
-  const prevId = levelIds[idx - 1]
-  return getLevelProgress(subjectId, prevId).completed
+  return true
 }
 
 export function calcStars(correct: number, total: number): number {
