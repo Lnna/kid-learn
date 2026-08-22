@@ -27,7 +27,7 @@
             <ActivityIcon :name="p.leftIcon" :size="48" />
           </view>
           <text class="chip__text">{{ p.left }}</text>
-          <OptionSpeak :text="p.left" size="sm" />
+          <OptionSpeak :text="p.left" :lang="speakLang" size="sm" />
           <view class="chip__port chip__port--out" />
         </view>
       </view>
@@ -49,7 +49,7 @@
             <ActivityIcon :name="p.rightIcon" :size="48" />
           </view>
           <text class="chip__text">{{ p.right }}</text>
-          <OptionSpeak :text="p.right" size="sm" />
+          <OptionSpeak :text="p.right" :lang="speakLang" size="sm" />
         </view>
       </view>
     </view>
@@ -62,6 +62,7 @@ import { ref, computed, watch, nextTick, getCurrentInstance, onMounted, onUnmoun
 import type { DragMatchActivity } from '../../engine/types'
 import { playSfx } from '../../utils/sfx'
 import { emitSpiritReact } from '../../utils/spiritMiss'
+import { getLessonSpeakLang } from '../../utils/tts'
 import ActivityIcon from '../ui/ActivityIcon.vue'
 import OptionSpeak from '../ui/OptionSpeak.vue'
 
@@ -71,6 +72,7 @@ type LineView = { id: string; kind: LineKind; style: Record<string, string> }
 const props = defineProps<{ activity: DragMatchActivity; color?: string }>()
 const emit = defineEmits<{ done: [score: { correct: number; total: number }] }>()
 const instance = getCurrentInstance()
+const speakLang = computed(() => getLessonSpeakLang() || undefined)
 
 const boardId = `match-board-${Math.random().toString(36).slice(2, 8)}`
 

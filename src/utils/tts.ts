@@ -333,6 +333,16 @@ function listVoices(): SpeechSynthesisVoice[] {
   // #endif
 }
 
+/** 系统是否安装了某语种语音包（如 en / zh）；未装时 Web Speech 常「假成功」却无声 */
+function hasLangVoice(langOrPrefix: string): boolean {
+  const prefix = (langOrPrefix || '').toLowerCase().replace(/_/g, '-').slice(0, 2)
+  if (!prefix) return false
+  return listVoices().some((v) => {
+    const vl = (v.lang || '').toLowerCase().replace(/_/g, '-')
+    return vl === prefix || vl.startsWith(`${prefix}-`)
+  })
+}
+
 /** 粤语 / 香港等，幼小衔接必须排除 */
 function isCantoneseVoice(v: SpeechSynthesisVoice): boolean {
   const tag = `${v.lang} ${v.name}`.toLowerCase()
@@ -485,6 +495,12 @@ function speakWeb(text: string, options: SpeakOptions, waitEnd = false, epoch = 
         u.volume = 1
 
         const voices = window.speechSynthesis.getVoices()
+        const wantEn = u.lang.toLowerCase().startsWith('en')
+        // 仅有中文语音包时，en-US 常 onstart 成功却无声，会挡住网络 TTS 兜底
+        if (wantEn && !hasLangVoice('en')) {
+          resolve(false)
+          return
+        }
         if (u.lang.toLowerCase().startsWith('zh')) {
           const mandarin = pickMandarinVoice(voices) || preferredVoice
           // 桌面/iOS：指定普通话 voice；安卓仅在找到明确 zh-CN 时指定（乱指定易无声）
@@ -511,12 +527,23 @@ function speakWeb(text: string, options: SpeakOptions, waitEnd = false, epoch = 
         const stale = () => epoch !== 0 && epoch !== speakEpoch
 
         if (waitEnd) {
+          let heardStart = false
+          u.onstart = () => {
+            heardStart = true
+          }
           u.onend = () => done(true)
           u.onerror = (e) => {
             if (stale() || isInterruptError(e)) done(true)
             else done(false)
           }
-          setTimeout(() => done(true), waitEndTimeoutMs(text, options.rate, options.maxWaitMs))
+          setTimeout(() => {
+            if (stale()) {
+              done(true)
+              return
+            }
+            // 从未开始 → 失败走网络；已开始则按播完处理
+            done(heardStart)
+          }, waitEndTimeoutMs(text, options.rate, options.maxWaitMs))
         } else {
           let heardStart = false
           u.onstart = () => {
@@ -1163,7 +1190,22 @@ async function speakOnce(text: string, options: SpeakOptions, waitEnd: boolean):
     return epoch !== speakEpoch
   }
 
-  // 桌面 / iOS：本地引擎优先
+  // 桌面 / iOS：有对应语音包时本地优先；英文且未装 en 语音包时先走网络（否则会假成功无声）
+  const enNeedNet = lang.toLowerCase().startsWith('en') && !hasLangVoice('en')
+  if (enNeedNet) {
+    if (await tryNet()) {
+      markSpokeOk(epoch)
+      return true
+    }
+    if (epoch !== speakEpoch) return true
+    if (await speakWeb(say, opts, waitEnd, epoch)) {
+      markSpokeOk(epoch)
+      return true
+    }
+    if (epoch === speakEpoch) console.warn('[tts] 英文发音失败（无系统英文语音）:', say, getTtsDebugInfo())
+    return epoch !== speakEpoch
+  }
+
   if (await speakWeb(say, opts, waitEnd, epoch)) {
     markSpokeOk(epoch)
     return true

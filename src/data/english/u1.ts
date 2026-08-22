@@ -25,7 +25,7 @@ export const englishUnit1 = unit(
           { id: 'd', label: 'D d', speak: 'D', speakLang: EN, icon: '🐶', subLabel: 'dog' },
           { id: 'e', label: 'E e', speak: 'E', speakLang: EN, icon: '🐘', subLabel: 'elephant' },
         ],
-        '点字母，听字母和单词'
+        '点字母，听单词'
       ),
       listenChoose(
         '听字母',
@@ -58,7 +58,7 @@ export const englishUnit1 = unit(
           { id: 'i', label: 'I i', speak: 'I', speakLang: EN, icon: '🍦', subLabel: 'ice cream' },
           { id: 'j', label: 'J j', speak: 'J', speakLang: EN, icon: '🧃', subLabel: 'juice' },
         ],
-        '点字母，听字母和单词'
+        '点字母，听单词'
       ),
       dragMatch('字母和单词', [
         { id: 'p1', left: 'F', right: 'fish' },
@@ -79,7 +79,7 @@ export const englishUnit1 = unit(
           { id: 'n', label: 'N n', speak: 'N', speakLang: EN, icon: '🪺', subLabel: 'nest' },
           { id: 'o', label: 'O o', speak: 'O', speakLang: EN, icon: '🐙', subLabel: 'octopus' },
         ],
-        '点字母，听字母和单词'
+        '点字母，听单词'
       ),
       listenChoose(
         '听字母选一选',
@@ -104,7 +104,7 @@ export const englishUnit1 = unit(
           { id: 's', label: 'S s', speak: 'S', speakLang: EN, icon: '☀️', subLabel: 'sun' },
           { id: 't', label: 'T t', speak: 'T', speakLang: EN, icon: '🐯', subLabel: 'tiger' },
         ],
-        '点字母，听字母和单词'
+        '点字母，听单词'
       ),
       quiz('字母小测', [
         {
@@ -151,7 +151,7 @@ export const englishUnit1 = unit(
           { id: 'y', label: 'Y y', speak: 'Y', speakLang: EN, icon: '💛', subLabel: 'yellow' },
           { id: 'z', label: 'Z z', speak: 'Z', speakLang: EN, icon: '🦓', subLabel: 'zebra' },
         ],
-        '点字母，听字母和单词'
+        '点字母，听单词'
       ),
       sequence('字母顺序 A B C D', [
         {
@@ -180,7 +180,7 @@ export const englishUnit1 = unit(
           { id: 'f', label: 'F', speak: 'F', speakLang: EN, icon: '🐟', subLabel: 'fish' },
           { id: 'm', label: 'M', speak: 'M', speakLang: EN, icon: '👩', subLabel: 'mom' },
         ],
-        '点字母，听字母和单词'
+        '点字母，听单词'
       ),
       listenChoose(
         '听发音选字母',
@@ -212,7 +212,7 @@ export const englishUnit1 = unit(
           { id: 'r', label: 'R', speak: 'R', speakLang: EN, icon: '🟥', subLabel: 'red' },
           { id: 'z', label: 'Z', speak: 'Z', speakLang: EN, icon: '🦓', subLabel: 'zoo' },
         ],
-        '点字母，听字母和单词'
+        '点字母，听单词'
       ),
       quiz('首字母发音', [
         {

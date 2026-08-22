@@ -44,7 +44,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, inject, type ComputedRef } from 'vue'
 import type { QuizActivity, SubjectId } from '../../engine/types'
 import { addMistake } from '../../engine/mistakes'
-import { speak, stopSpeak, unlockSpeak } from '../../utils/tts'
+import { speak, stopSpeak, unlockSpeak, getLessonSpeakLang } from '../../utils/tts'
 import { toSpeakText } from '../../utils/speakText'
 import { playSfx } from '../../utils/sfx'
 import ActivityIcon from '../ui/ActivityIcon.vue'
@@ -129,9 +129,10 @@ function say(userInitiated = false) {
   if (!text) return
   // 勿先 stopSpeak 再立刻 speak：安卓 cancel 后立即 speak 会被静默忽略。
   // speak() 内部会打断旧播报并做 cancel→speak 间隔。
-  // 不写死 zh-CN：英文题干交给 resolveLang 识别，中文引擎读英文会无声。
+  // 英文课显式传 en-US，避免系统只有中文语音包时假成功却无声。
   // silent 仅用于自动播；手动「再听一遍」失败时应可提示。
-  speak(text, { silent: !userInitiated })
+  const lang = getLessonSpeakLang()
+  speak(text, { silent: !userInitiated, ...(lang ? { lang } : {}) })
 }
 
 function scheduleSay(delay = 320) {
