@@ -496,6 +496,11 @@ function speakWeb(text: string, options: SpeakOptions, waitEnd = false, epoch = 
 
         const voices = window.speechSynthesis.getVoices()
         const wantEn = u.lang.toLowerCase().startsWith('en')
+        // 微信内 Web Speech 英文不可靠（iOS 常 onstart 假成功无声），交给网络 TTS
+        if (wantEn && isWeChat()) {
+          resolve(false)
+          return
+        }
         // 仅有中文语音包时，en-US 常 onstart 成功却无声，会挡住网络 TTS 兜底
         if (wantEn && !hasLangVoice('en')) {
           resolve(false)
@@ -1190,7 +1195,27 @@ async function speakOnce(text: string, options: SpeakOptions, waitEnd: boolean):
     return epoch !== speakEpoch
   }
 
-  // 桌面 / iOS：有对应语音包时本地优先；英文且未装 en 语音包时先走网络（否则会假成功无声）
+  // 微信 iOS：英文 Web Speech 常假成功无声；与安卓微信一样优先同源 TTS
+  if (isWeChat() && lang.toLowerCase().startsWith('en')) {
+    if (await tryNet()) {
+      markSpokeOk(epoch)
+      return true
+    }
+    if (epoch !== speakEpoch) return true
+    if (await speakWeb(say, opts, waitEnd, epoch)) {
+      markSpokeOk(epoch)
+      return true
+    }
+    if (epoch !== speakEpoch) return true
+    if (await playYoudaoWeChat(say, lang, epoch)) {
+      markSpokeOk(epoch)
+      return true
+    }
+    if (epoch === speakEpoch) console.warn('[tts] 微信英文发音失败:', say, getTtsDebugInfo())
+    return epoch !== speakEpoch
+  }
+
+  // 桌面 / Safari iOS：有对应语音包时本地优先；英文且未装 en 语音包时先走网络（否则会假成功无声）
   const enNeedNet = lang.toLowerCase().startsWith('en') && !hasLangVoice('en')
   if (enNeedNet) {
     if (await tryNet()) {
@@ -1240,7 +1265,7 @@ export function speak(text: string, options: SpeakOptions = {}): void {
   void (async () => {
     unlockSpeak()
     // 已解锁则不要 await，避免每次点击空等一拍
-    if (!audioUnlockOk && !(isWeChat() && isAndroid())) {
+    if (!audioUnlockOk && !isWeChat()) {
       await ensureAudioUnlocked()
     }
     const ok = await speakOnce(trimmed, options, false)
@@ -1281,9 +1306,7 @@ export function speakAsync(text: string, options: SpeakOptions = {}): Promise<vo
   if (!trimmed) return Promise.resolve()
   unlockSpeak()
   const prep =
-    audioUnlockOk || (isWeChat() && isAndroid())
-      ? Promise.resolve()
-      : ensureAudioUnlocked()
+    audioUnlockOk || isWeChat() ? Promise.resolve() : ensureAudioUnlocked()
   return prep.then(async () => {
     const play = speakOnce(trimmed, options, true)
     if (options.maxWaitMs && options.maxWaitMs > 0) {
